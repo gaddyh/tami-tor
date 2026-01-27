@@ -12,6 +12,7 @@ from db.session import SessionLocal
 from models.outbox import Outbox
 from models.outbound_message import OutboundMessage
 from runtime.redis_client import dequeue_outbox, enqueue_outbox
+from runtime.events import emit_event
 
 
 def _now_utc():
@@ -75,13 +76,27 @@ def main() -> None:
         if not outbox_id:
             continue
         
-        print(f"Dequeued outbox_id={outbox_id}", flush=True)
+        emit_event(
+            event="OUTBOX_DEQUEUED",
+            outbox_id=outbox_id,
+            meta={"where": "worker"},
+        )
 
         try:
             with SessionLocal() as db:
                 outbox = claim_outbox(db, outbox_id)
                 if not outbox:
                     continue
+
+                emit_event(
+                    event="OUTBOX_CLAIMED",
+                    outbox_id=str(outbox.outbox_id),
+                    type=outbox.type,
+                    business_id=outbox.business_id,
+                    client_id=outbox.client_id,
+                    session_id=str(outbox.session_id),
+                    attempt=int(outbox.attempts),
+                )
 
                 if outbox.type == "HELLO":
                     handle_hello(db, outbox)
@@ -92,9 +107,25 @@ def main() -> None:
                     outbox.payload_json = {**(outbox.payload_json or {}), "error": "unknown job type"}
                     db.commit()
 
+                emit_event(
+                    event="OUTBOX_DONE",
+                    outbox_id=str(outbox.outbox_id),
+                    type=outbox.type,
+                    business_id=outbox.business_id,
+                    client_id=outbox.client_id,
+                    session_id=str(outbox.session_id),
+                    attempt=int(outbox.attempts),
+                )
+
+
         except Exception as e:
             # minimal retry: put back as pending with short delay
-            print(f"Job failed outbox_id={outbox_id}: {e}")
+            emit_event(
+                event="OUTBOX_FAILED",
+                outbox_id=outbox_id,
+                meta={"error": str(e)},
+            )
+
             with SessionLocal() as db:
                 o = db.execute(select(Outbox).where(Outbox.outbox_id == outbox_id)).scalar_one_or_none()
                 if o and o.status == "processing":
