@@ -68,7 +68,7 @@ def handle_hello(db: OrmSession, outbox: Outbox) -> None:
 
 
 def main() -> None:
-    print("Worker started. Waiting for jobs...")
+    print("Worker started. Waiting for jobs...", flush=True)
 
     while True:
         outbox_id = dequeue_outbox(block_seconds=10)
