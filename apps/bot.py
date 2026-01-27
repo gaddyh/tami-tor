@@ -187,3 +187,141 @@ def debug_state(
             "errors": redis_errors,
         },
     }
+
+from fastapi.responses import HTMLResponse
+from html import escape
+
+@app.get("/debug/ui", response_class=HTMLResponse)
+def debug_ui(token: str, count: int = 20):
+    expected = os.getenv("DEBUG_TOKEN")
+    if not expected or token != expected:
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    # Reuse your existing JSON debug source
+    data = debug_state(count=count, x_debug_token=expected)
+
+    pg = data["postgres"]
+    rd = data["redis"]
+
+    # Helpers
+    def td(x): return f"<td>{escape(str(x))}</td>"
+    def th(x): return f"<th>{escape(str(x))}</th>"
+
+    # Outbox status counts
+    status_rows = "".join(
+        f"<tr>{td(k)}{td(v)}</tr>"
+        for k, v in sorted(pg["outbox_by_status"].items())
+    ) or "<tr><td colspan='2'>No data</td></tr>"
+
+    # Latest outbox
+    outbox_rows = ""
+    for o in pg["latest_outbox"]:
+        outbox_rows += (
+            "<tr>"
+            f"{td(o['created_at'])}"
+            f"{td(o['updated_at'])}"
+            f"{td(o['status'])}"
+            f"{td(o['attempts'])}"
+            f"{td(o['type'])}"
+            f"{td(o['business_id'])}"
+            f"{td(o['client_id'])}"
+            f"{td(o['outbox_id'])}"
+            "</tr>"
+        )
+    if not outbox_rows:
+        outbox_rows = "<tr><td colspan='8'>No outbox rows</td></tr>"
+
+    # Redis stream
+    stream_rows = ""
+    for e in rd["stream"]["latest"]:
+        f = e["fields"]
+        stream_rows += (
+            "<tr>"
+            f"{td(f.get('ts'))}"
+            f"{td(f.get('event'))}"
+            f"{td(f.get('type'))}"
+            f"{td(f.get('business_id'))}"
+            f"{td(f.get('client_id'))}"
+            f"{td(f.get('outbox_id'))}"
+            f"{td(f.get('attempt'))}"
+            f"{td(f.get('meta'))}"
+            "</tr>"
+        )
+    if not stream_rows:
+        stream_rows = "<tr><td colspan='8'>No stream events</td></tr>"
+
+    queue_len = rd["queue"]["length"]
+    redis_errs = "<br/>".join(escape(x) for x in rd.get("errors", [])) or "None"
+
+    html = f"""
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>tami debug</title>
+  <style>
+    body {{ font-family: ui-sans-serif, system-ui; margin: 24px; }}
+    h2 {{ margin-top: 28px; }}
+    .row {{ display: flex; gap: 24px; flex-wrap: wrap; }}
+    .card {{ border: 1px solid #ddd; border-radius: 10px; padding: 14px; }}
+    table {{ border-collapse: collapse; width: 100%; }}
+    th, td {{ border: 1px solid #eee; padding: 8px; font-size: 13px; vertical-align: top; }}
+    th {{ background: #fafafa; text-align: left; }}
+    .mono {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }}
+    .small {{ font-size: 12px; color: #666; }}
+  </style>
+</head>
+<body>
+  <h1>tami debug</h1>
+  <div class="row">
+    <div class="card">
+      <div><b>Redis queue</b> <span class="small">(jobs:outbox)</span></div>
+      <div class="mono" style="font-size:22px">{escape(str(queue_len))}</div>
+    </div>
+    <div class="card">
+      <div><b>Redis errors</b></div>
+      <div class="mono small">{redis_errs}</div>
+    </div>
+  </div>
+
+  <h2>Postgres: Outbox status counts</h2>
+  <div class="card">
+    <table>
+      <thead><tr>{th("status")}{th("count")}</tr></thead>
+      <tbody>{status_rows}</tbody>
+    </table>
+  </div>
+
+  <h2>Postgres: Latest outbox</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          {th("created_at")}{th("updated_at")}{th("status")}{th("attempts")}
+          {th("type")}{th("business_id")}{th("client_id")}{th("outbox_id")}
+        </tr>
+      </thead>
+      <tbody>{outbox_rows}</tbody>
+    </table>
+  </div>
+
+  <h2>Redis Stream: Latest events</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          {th("ts")}{th("event")}{th("type")}{th("business_id")}
+          {th("client_id")}{th("outbox_id")}{th("attempt")}{th("meta")}
+        </tr>
+      </thead>
+      <tbody>{stream_rows}</tbody>
+    </table>
+  </div>
+
+  <div class="small" style="margin-top:16px">
+    Tip: refresh to update. Use <span class="mono">?count=50</span> to show more stream events.
+  </div>
+</body>
+</html>
+"""
+    return HTMLResponse(html)
