@@ -10,6 +10,7 @@ def main() -> None:
         row = db.execute(select(User).order_by(User.id.desc()).limit(1)).scalar_one_or_none()
 
         if not row:
+            
             print("No users found in DB.")
             return
 
