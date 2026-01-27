@@ -76,7 +76,7 @@ def hello(inp: HelloIn) -> HelloOut:
 
         # ✅ log: durable DB row exists
         emit_event(
-            event="OUTBOX_ENQUEUED",
+            event="OUTBOX_SAVED_TO_DB",
             outbox_id=str(outbox.outbox_id),
             type=outbox.type,
             business_id=outbox.business_id,
@@ -90,7 +90,7 @@ def hello(inp: HelloIn) -> HelloOut:
 
         # ✅ log: redis push happened
         emit_event(
-            event="OUTBOX_PUSHED_REDIS",
+            event="OUTBOX_ENQUEUED",
             outbox_id=str(outbox.outbox_id),
             type=outbox.type,
             business_id=outbox.business_id,
