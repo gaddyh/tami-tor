@@ -76,7 +76,7 @@ def hello(inp: HelloIn) -> HelloOut:
 
         # ✅ log: durable DB row exists
         emit_event(
-            event="OUTBOX_SAVED_TO_DB",
+            event="OUTBOX_COMMITTED",
             outbox_id=str(outbox.outbox_id),
             type=outbox.type,
             business_id=outbox.business_id,
