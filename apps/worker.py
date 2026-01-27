@@ -74,6 +74,8 @@ def main() -> None:
         outbox_id = dequeue_outbox(block_seconds=10)
         if not outbox_id:
             continue
+        
+        print(f"Dequeued outbox_id={outbox_id}", flush=True)
 
         try:
             with SessionLocal() as db:
