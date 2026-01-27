@@ -36,18 +36,12 @@ class HelloOut(BaseModel):
 @app.get("/health")
 def health():
     return {"ok": True}
-
+from runtime.events import emit_event
+from runtime.redis_client import QUEUE_OUTBOX
 
 @app.post("/hello", response_model=HelloOut)
 def hello(inp: HelloIn) -> HelloOut:
-    """
-    Stateless ingress:
-    - creates/gets an active session
-    - writes an outbox job
-    - enqueues outbox_id to Redis
-    """
     with SessionLocal() as db:
-        # 1) find active session (simple rule: one active per client+business)
         existing = db.execute(
             select(Session)
             .where(Session.business_id == inp.business_id)
@@ -67,9 +61,8 @@ def hello(inp: HelloIn) -> HelloOut:
                 state_json={},
             )
             db.add(session)
-            db.flush()  # ensures session.session_id is available
+            db.flush()
 
-        # 2) create outbox job
         outbox = Outbox(
             type="HELLO",
             business_id=inp.business_id,
@@ -79,13 +72,9 @@ def hello(inp: HelloIn) -> HelloOut:
             status="pending",
         )
         db.add(outbox)
-        db.commit()  # commit BEFORE enqueue (so worker can always find it)
+        db.commit()  # outbox is durable now
 
-        # 3) enqueue
-        enqueue_outbox(str(outbox.outbox_id))
-
-        from runtime.events import emit_event
-
+        # ✅ log: durable DB row exists
         emit_event(
             event="OUTBOX_ENQUEUED",
             outbox_id=str(outbox.outbox_id),
@@ -96,7 +85,10 @@ def hello(inp: HelloIn) -> HelloOut:
             meta={"where": "web"},
         )
 
-        # after enqueue_outbox(...)
+        # ✅ enqueue to Redis
+        enqueue_outbox(str(outbox.outbox_id))
+
+        # ✅ log: redis push happened
         emit_event(
             event="OUTBOX_PUSHED_REDIS",
             outbox_id=str(outbox.outbox_id),
@@ -104,9 +96,8 @@ def hello(inp: HelloIn) -> HelloOut:
             business_id=outbox.business_id,
             client_id=outbox.client_id,
             session_id=str(outbox.session_id),
-            meta={"queue": "jobs:outbox"},
+            meta={"queue": QUEUE_OUTBOX},
         )
-
 
         return HelloOut(
             session_id=str(session.session_id),
