@@ -100,6 +100,16 @@ def main() -> None:
 
                 if outbox.type == "HELLO":
                     handle_hello(db, outbox)
+
+                    emit_event(
+                        event="OUTBOX_DONE",
+                        outbox_id=str(outbox.outbox_id),
+                        type=outbox.type,
+                        business_id=outbox.business_id,
+                        client_id=outbox.client_id,
+                        session_id=str(outbox.session_id),
+                        attempt=int(outbox.attempts),
+                    )                
                 else:
                     # unknown job type -> mark failed (minimal)
                     outbox.status = "failed"
@@ -107,15 +117,17 @@ def main() -> None:
                     outbox.payload_json = {**(outbox.payload_json or {}), "error": "unknown job type"}
                     db.commit()
 
-                emit_event(
-                    event="OUTBOX_DONE",
-                    outbox_id=str(outbox.outbox_id),
-                    type=outbox.type,
-                    business_id=outbox.business_id,
-                    client_id=outbox.client_id,
-                    session_id=str(outbox.session_id),
-                    attempt=int(outbox.attempts),
-                )
+                    emit_event(
+                        event="OUTBOX_UNKNOWN_TYPE",
+                        outbox_id=str(outbox.outbox_id),
+                        type=outbox.type,
+                        business_id=outbox.business_id,
+                        client_id=outbox.client_id,
+                        session_id=str(outbox.session_id),
+                        attempt=int(outbox.attempts),
+                    )
+
+                    
 
 
         except Exception as e:
