@@ -19,6 +19,22 @@ QUEUE_OUTBOX = "jobs:outbox"
 # One shared client instance per process
 redis_client = Redis.from_url(REDIS_URL, decode_responses=True)
 
+QUEUE_INBOUND = "jobs:inbound"
+
+def enqueue_inbound(inbound_id: str) -> None:
+    if not inbound_id:
+        raise ValueError("inbound_id is required")
+    redis_client.rpush(QUEUE_INBOUND, inbound_id)
+
+def dequeue_inbound(*, block_seconds: int = 10) -> Optional[str]:
+    if block_seconds <= 0:
+        raise ValueError("block_seconds must be > 0")
+    item = redis_client.blpop(QUEUE_INBOUND, timeout=block_seconds)
+    if not item:
+        return None
+    _, value = item
+    return value
+
 
 def enqueue_outbox(outbox_id: str) -> None:
     """

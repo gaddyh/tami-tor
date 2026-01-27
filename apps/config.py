@@ -12,8 +12,8 @@ def env(name: str, default: str | None = None) -> str:
 DATABASE_URL = env("DATABASE_URL")
 REDIS_URL = env("REDIS_URL")
 
-OUTBOX_QUEUE_NAME = os.getenv("OUTBOX_QUEUE_NAME", "jobs:outbox")
-OUTBOX_STALE_SECONDS = int(os.getenv("OUTBOX_STALE_SECONDS", "120"))  # 2 minutes
-OUTBOX_SWEEP_BATCH = int(os.getenv("OUTBOX_SWEEP_BATCH", "500"))      # cap per run
-OUTBOX_STREAM_KEY = os.getenv("OUTBOX_STREAM_KEY", "events:outbox")   # optional
-OUTBOX_EMIT_STREAM = os.getenv("OUTBOX_EMIT_STREAM", "1") == "1"
+INBOUND_QUEUE_NAME = os.getenv("INBOUND_QUEUE_NAME", "jobs:inbound")
+INBOUND_STALE_SECONDS = int(os.getenv("INBOUND_STALE_SECONDS", "120"))  # 2 minutes
+INBOUND_SWEEP_BATCH = int(os.getenv("INBOUND_SWEEP_BATCH", "500"))      # cap per run
+INBOUND_STREAM_KEY = os.getenv("INBOUND_STREAM_KEY", "events:inbound")   # optional
+INBOUND_EMIT_STREAM = os.getenv("INBOUND_EMIT_STREAM", "1") == "1"

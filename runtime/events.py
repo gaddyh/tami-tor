@@ -19,7 +19,7 @@ def _now_iso() -> str:
 def emit_event(
     *,
     event: str,
-    outbox_id: Optional[str] = None,
+    inbound_id: Optional[str] = None,
     type: Optional[str] = None,
     business_id: Optional[str] = None,
     client_id: Optional[str] = None,
@@ -42,7 +42,7 @@ def emit_event(
         fields = {
             "ts": ts,
             "event": event,
-            "outbox_id": outbox_id or "",
+            "inbound_id": inbound_id or "",
             "type": type or "",
             "business_id": business_id or "",
             "client_id": client_id or "",
@@ -60,7 +60,7 @@ def emit_event(
         with SessionLocal() as db:
             row = EventLog(
                 event=event,
-                outbox_id=outbox_id,
+                outbox_id=inbound_id,
                 business_id=business_id,
                 client_id=client_id,
                 session_id=session_id,
@@ -68,5 +68,6 @@ def emit_event(
             )
             db.add(row)
             db.commit()
-    except Exception:
+    except Exception as e:
+        print(f"Failed to log event {event}: {e}")
         pass
