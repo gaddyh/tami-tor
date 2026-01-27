@@ -19,7 +19,8 @@ from apps.config import (
     OUTBOX_QUEUE_NAME,
     OUTBOX_STALE_SECONDS,
 )
-
+from handlers.registry import HANDLERS
+from handlers.errors import NonRetryableError
 # ----------------------------
 # Time helpers
 # ----------------------------
@@ -142,33 +143,7 @@ def schedule_retry(outbox: Outbox, *, error: str) -> datetime:
 # Handler contract
 # ----------------------------
 
-class NonRetryableError(RuntimeError):
-    pass
-
-
 Handler = Callable[[OrmSession, Outbox], None]
-
-
-def handle_hello(db: OrmSession, outbox: Outbox) -> None:
-    payload = outbox.payload_json or {}
-    text_value = payload.get("text") or "Hello (default)"
-
-    msg = OutboundMessage(
-        business_id=outbox.business_id,
-        client_id=outbox.client_id,
-        session_id=outbox.session_id,
-        text=text_value,
-        meta_json={
-            "source": "worker",
-            "outbox_id": str(outbox.outbox_id),
-        },
-    )
-    db.add(msg)
-
-
-HANDLERS: dict[str, Handler] = {
-    "HELLO": handle_hello,
-}
 
 
 # ----------------------------
