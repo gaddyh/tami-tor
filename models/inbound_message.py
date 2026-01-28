@@ -28,12 +28,6 @@ class InboundMessage(Base):
     # Raw single message object
     raw: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    # Durable “work item” fields (replaces Outbox)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
-    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    run_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

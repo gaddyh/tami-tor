@@ -46,11 +46,6 @@ def persist_inbound_and_enqueue(
                 raw=raw_message,
                 timestamp=ts_int,
                 from_=from_value,
-                # NOTE: you can delete status/attempts/run_after from InboundMessage later
-                status="pending",
-                attempts=0,
-                run_after=None,
-                last_error=None,
             )
             db.add(inbound)
             db.flush()  # inbound.id
@@ -62,10 +57,6 @@ def persist_inbound_and_enqueue(
                 ref_id=inbound_id,
                 business_id=phone_number_id,  # treat phone_number_id as business key for now
                 client_id=from_value,
-                status="pending",
-                attempts=0,
-                run_after=None,
-                last_error=None,
             )
             db.add(wi)
             db.flush()  # wi.work_id

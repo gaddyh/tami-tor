@@ -4,6 +4,7 @@ from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
+from handlers.utility import load_or_create_session
 
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
@@ -35,6 +36,23 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     adapter = CloudAPIAdapter(phone_number_id)
     rawMessage = await adapter.parse_incoming(raw)
     print("Parsed message:", rawMessage, flush=True)
+
+    session = load_or_create_session(
+        db,
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+    )
+
+    print(
+        "Inbound routed to session",
+        {
+            "work_id": str(wi.work_id),
+            "session_id": str(session.session_id),
+            "business_id": session.business_id,
+            "client_id": session.client_id,
+        },
+        flush=True,
+    )
 
 
     # ... next: load/create Session, reduce, emit new work items, etc.
