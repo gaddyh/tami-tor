@@ -11,6 +11,7 @@ from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from runtime.redis_client import enqueue_work
 from runtime.events import emit_event
+from handlers.utility import get_business_id
 
 
 def _now_utc():
@@ -55,7 +56,7 @@ def persist_inbound_and_enqueue(
             wi = WorkItem(
                 kind="INBOUND",
                 ref_id=inbound_id,
-                business_id=phone_number_id,  # treat phone_number_id as business key for now
+                business_id=get_business_id(phone_number_id, from_value),
                 client_id=from_value,
             )
             db.add(wi)

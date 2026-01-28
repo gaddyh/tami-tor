@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from adapters.primitivies import RawMessage
 from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
@@ -34,7 +35,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
         flush=True,
     )
     adapter = CloudAPIAdapter(phone_number_id)
-    rawMessage = await adapter.parse_incoming(raw)
+    rawMessage: RawMessage = await adapter.parse_incoming(raw)
     print("Parsed message:", rawMessage, flush=True)
 
     session = load_or_create_session(
@@ -50,6 +51,9 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
             "session_id": str(session.session_id),
             "business_id": session.business_id,
             "client_id": session.client_id,
+            "text": rawMessage.text,
+            "button_reply": rawMessage.content.button_reply,
+            "list_reply": rawMessage.content.list_reply,
         },
         flush=True,
     )
