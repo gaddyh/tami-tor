@@ -13,7 +13,7 @@ import os
 
 wa_token = os.environ["WHATSAPP_ACCESS_TOKEN"]
 
-class CloudAPIAdapter(WhatsAppAdapter):
+class CloudAPIAdapter():
     def __init__(self, phone_number_id: str = None):
         self.access_token = wa_token
         if phone_number_id:
