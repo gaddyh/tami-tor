@@ -16,9 +16,9 @@ from runtime.events import emit_event
 from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 
-from apps.config import OUTBOX_STALE_SECONDS  # reuse your knob as “stale seconds”
+from apps.config import WORK_STALE_SECONDS  # reuse your knob as “stale seconds”
 
-LOCK_TTL_SECONDS = int(OUTBOX_STALE_SECONDS)
+LOCK_TTL_SECONDS = int(WORK_STALE_SECONDS)
 MAX_ATTEMPTS = 5
 
 
