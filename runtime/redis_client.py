@@ -96,13 +96,3 @@ def enqueue_outbox(outbox_id: str) -> None:
     if not outbox_id:
         raise ValueError("outbox_id is required")
     redis_client.rpush(QUEUE_OUTBOX, outbox_id)
-
-
-def dequeue_outbox(*, block_seconds: int = 10) -> Optional[str]:
-    if block_seconds <= 0:
-        raise ValueError("block_seconds must be > 0")
-    item = redis_client.blpop(QUEUE_OUTBOX, timeout=block_seconds)
-    if not item:
-        return None
-    _, value = item
-    return value
