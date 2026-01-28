@@ -15,16 +15,12 @@ from runtime.redis_client import dequeue_work, enqueue_work, redis_client
 from runtime.events import emit_event
 from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
+from handlers.utility import now_israel
 
 from apps.config import WORK_STALE_SECONDS  # reuse your knob as “stale seconds”
 
 LOCK_TTL_SECONDS = int(WORK_STALE_SECONDS)
 MAX_ATTEMPTS = 5
-
-
-def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
-
 
 def _backoff_seconds(attempt: int) -> int:
     return min(2 ** max(0, attempt - 1), 30)
@@ -81,22 +77,22 @@ def claim_work(db: OrmSession, work_id: str) -> Optional[WorkItem]:
 def mark_done(wi: WorkItem) -> None:
     wi.status = "done"
     wi.last_error = None
-    wi.updated_at = _now_utc()
+    wi.updated_at = now_israel()
 
 
 def mark_failed(wi: WorkItem, *, error: str) -> None:
     wi.status = "failed"
     wi.last_error = error
-    wi.updated_at = _now_utc()
+    wi.updated_at = now_israel()
 
 
 def schedule_retry(wi: WorkItem, *, error: str) -> datetime:
     delay = _backoff_seconds(int(wi.attempts))
-    run_after = _now_utc() + timedelta(seconds=delay)
+    run_after = now_israel() + timedelta(seconds=delay)
     wi.status = "pending"
     wi.run_after = run_after
     wi.last_error = error
-    wi.updated_at = _now_utc()
+    wi.updated_at = now_israel()
     return run_after
 
 import asyncio
@@ -148,10 +144,10 @@ def main() -> None:
                 if wi.business_id and wi.client_id:
                     acquired, lock_token = acquire_lock(wi.business_id, wi.client_id)
                     if not acquired:
-                        run_after = _now_utc() + timedelta(seconds=1)
+                        run_after = now_israel() + timedelta(seconds=1)
                         wi.status = "pending"
                         wi.run_after = run_after
-                        wi.updated_at = _now_utc()
+                        wi.updated_at = now_israel()
                         db.commit()
 
                         emit_event(

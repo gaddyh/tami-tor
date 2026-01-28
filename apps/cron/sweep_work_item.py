@@ -11,11 +11,7 @@ from sqlalchemy import text
 from apps.config import WORK_SWEEP_BATCH, WORK_STALE_SECONDS, WORK_QUEUE_NAME
 from db.session import SessionLocal
 from runtime.redis_client import enqueue_work
-
-
-def _utc_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
+from handlers.utility import now_israel
 
 def _select_runnable_pending(db) -> List[str]:
     """
@@ -116,7 +112,7 @@ def sweep_work() -> dict:
     dt_ms = int((time.time() - t0) * 1000)
     return {
         "ok": True,
-        "ts": _utc_iso(),
+        "ts": now_israel().isoformat(),
         "queue": WORK_QUEUE_NAME,
         "pending_found": len(pending_ids),
         "stale_found": len(stale_ids),

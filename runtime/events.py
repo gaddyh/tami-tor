@@ -8,12 +8,9 @@ from typing import Any, Optional
 from db.session import SessionLocal
 from models.event_log import EventLog
 from runtime.redis_client import redis_client
+from handlers.utility import now_israel
 
 STREAM_OUTBOX_EVENTS = "events:work"
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def emit_event(
@@ -35,7 +32,7 @@ def emit_event(
     Never raises (visibility must not break the pipeline).
     """
     meta = meta or {}
-    ts = _now_iso()
+    ts = now_israel().isoformat()
 
     # 1) Redis Stream (realtime)
     try:

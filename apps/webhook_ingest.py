@@ -13,11 +13,6 @@ from runtime.redis_client import enqueue_work
 from runtime.events import emit_event
 from handlers.utility import get_business_id
 
-
-def _now_utc():
-    return datetime.now(timezone.utc)
-
-
 def persist_inbound_and_enqueue(
     *,
     message_id: str,
