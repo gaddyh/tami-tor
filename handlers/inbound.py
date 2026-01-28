@@ -6,6 +6,7 @@ from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
 from handlers.utility import load_or_create_session
+from runtime.session_state import parse_session_state, dump_session_state
 
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
@@ -55,5 +56,26 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
         flush=True,
     )
 
+    # --- Understand / normalize state ---
+    flow, step, data = parse_session_state(session.state_json)
 
-    # ... next: load/create Session, reduce, emit new work items, etc.
+    # Bootstrap if missing or malformed
+    if not isinstance(session.state_json, dict) or not session.state_json:
+        session.state_json = dump_session_state(flow, step, data)
+
+    print(
+        "Session state:",
+        {
+            "session_id": str(session.session_id),
+            "flow": flow.value,
+            "step": step.value,
+            "data_keys": list(data.keys()),
+        },
+        flush=True,
+    )
+
+    # If this is a brand new session, you can initialize it explicitly:
+    
+    # don't commit here; let worker commit at the end
+
+    # ... next: reduce, emit new work items, etc.
