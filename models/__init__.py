@@ -5,4 +5,5 @@ from models.event_log import EventLog  # noqa: F401
 from models.inbound_message import InboundMessage  # noqa: F401
 from models.work_item import WorkItem  # noqa: F401
 from models.business import Business  # noqa: F401
+from models.business_scheduled_message import BusinessScheduledMessage  # noqa: F401
 

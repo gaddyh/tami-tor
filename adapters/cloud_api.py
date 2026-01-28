@@ -3,7 +3,7 @@ from .primitivies import (
     RawMessage, SenderInfo, ContentInfo, MediaInfo, LocationInfo, 
     ButtonReplyInfo, ListReplyInfo, ReplyContextInfo, SharedContactInfo, ReferralInfo
 )
-from typing import Optional
+from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 load_dotenv(".venv/.env")
 import logging
@@ -161,3 +161,62 @@ class CloudAPIAdapter():
         except Exception:
             logger.exception("Error building MessageState from CloudAPI data")
             raise
+
+    async def send_dynamic_list_message(
+        self,
+        *,
+        to_phone: str,
+        interactive_payload: Dict[str, Any],
+        reply_to: Optional[str] = None,
+        graph_version: str = "v22.0",
+        timeout_s: float = 20.0,
+    ) -> Dict[str, Any]:
+        """
+        Sends a WhatsApp Cloud API *interactive list* message.
+
+        Params:
+        - interactive_payload: the value for the "interactive" field (must include {"type":"list", ...})
+        - reply_to: optional message_id to reply to (sets payload["context"])
+        """
+        if not isinstance(interactive_payload, dict):
+            raise TypeError("interactive_payload must be a dict")
+
+        # Minimal sanity checks (doesn't validate full schema)
+        itype = interactive_payload.get("type")
+        if itype != "list":
+            raise ValueError(f'interactive_payload["type"] must be "list" (got {itype!r})')
+
+        url = f"https://graph.facebook.com/{graph_version}/{self.phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        payload: Dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "to": str(to_phone),
+            "type": "interactive",
+            "interactive": interactive_payload,
+        }
+
+        if reply_to:
+            payload["context"] = {"message_id": reply_to}
+
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+
+        if 200 <= resp.status_code < 300:
+            return {"status": "sent", "response": resp.json()}
+
+        # Include request payload to help debug quickly (you can remove if sensitive)
+        logger.error(
+            "Failed to send list message: %s - %s",
+            resp.status_code,
+            resp.text,
+        )
+        return {
+            "status": "failed",
+            "code": resp.status_code,
+            "error": resp.text,
+            "request": payload,
+        }

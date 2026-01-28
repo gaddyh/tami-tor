@@ -40,13 +40,6 @@ class EnqueueOwnerApprovalEffect(TypedDict):
 
 Effect = Union[SendTextEffect, EnqueueOwnerApprovalEffect, SendConfirmButtonsEffect, SendServiceListEffect, SendSlotsListEffect]
 
-def services_list_payload(rows) -> dict:
-    return {
-        "type": "list",
-        "body": {"text": "באיזה שירות תרצי לבחור?"},
-        "action": {"button": "בחירה", "sections": [{"title": "שירותים זמינים", "rows": rows}]},
-    }
-
 @dataclass(frozen=True)
 class ReduceResult:
     flow: SessionFlow

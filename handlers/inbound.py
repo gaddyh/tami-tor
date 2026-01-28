@@ -5,11 +5,11 @@ from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
-from handlers.utility import load_or_create_session, load_business_by_wa_id, build_service_rows
+from handlers.utility import load_or_create_session, load_business_by_wa_id, services_list_payload
 from runtime.session_state import parse_session_state, dump_session_state
 from reducers.client_reducer import reduce_session
 
-
+from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     """
@@ -89,6 +89,20 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage, ctx=ctx)
     
     print("Reducer result:", result, flush=True)
+
+    for eff in effects:
+        if eff["kind"] == "SEND_SERVICE_LIST" and eff.get("to") == "client":
+            payload = services_list_payload(eff["rows"])
+
+            persist_scheduled_message_and_enqueue(
+                business_id=session.business_id,
+                wa_id=inbound.phone_number_id,                 # phone_number_id
+                client_id=session.client_id,                   # chat id
+                to_chat_id=from_,
+                interactive_payload=payload,
+                workflow_id=str(session.session_id),
+            )
+
     # If this is a brand new session, you can initialize it explicitly:
     
     # don't commit here; let worker commit at the end
