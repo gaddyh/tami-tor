@@ -90,7 +90,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     
     print("Reducer result:", result, flush=True)
 
-    for eff in effects:
+    for eff in result.effects:
         if eff["kind"] == "SEND_SERVICE_LIST" and eff.get("to") == "client":
             payload = services_list_payload(eff["rows"])
 

@@ -11,7 +11,7 @@ from runtime.redis_client import redis_client, QUEUE_WORK
 from apps.config import WORK_STREAM_KEY
 from models.work_item import WorkItem
 from models.inbound_message import InboundMessage
-
+from models.business_scheduled_message import BusinessScheduledMessage
 
 def _clamp(n: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, n))
@@ -120,11 +120,43 @@ def debug_state(
             for m in latest_inbound
         ]
 
+        latest_scheduled = db.execute(
+            select(BusinessScheduledMessage)
+            .order_by(BusinessScheduledMessage.updated_at.desc())
+            .limit(20)
+        ).scalars().all()
+
+        latest_scheduled_payload = [
+            {
+                "id": str(s.id),
+                "business_id": s.business_id,
+                "wa_id": s.wa_id,
+                "to_chat_id": s.to_chat_id,
+                "status": s.status,
+                "send_at": s.send_at.isoformat() if s.send_at else None,
+                "workflow_id": s.workflow_id,
+                "idempotency_key": s.idempotency_key,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+                "payload_preview": _compact_json(s.interactive_payload, limit=240),
+            }
+            for s in latest_scheduled
+        ]
+
+        scheduled_by_status = dict(
+            db.execute(
+                select(BusinessScheduledMessage.status, func.count()).group_by(BusinessScheduledMessage.status)
+            ).all()
+        )
+
+
     return {
         "postgres": {
             "work_by_status": work_by_status,
             "latest_work": latest_work_payload,
             "latest_inbound": latest_inbound_payload,
+            "scheduled_by_status": scheduled_by_status,
+            "latest_scheduled": latest_scheduled_payload,
         },
         "redis": {
             "queue": {"name": QUEUE_WORK, "length": redis_queue_len},
@@ -202,6 +234,33 @@ def debug_ui(token: str, count: int = 20):
     if not inbound_rows:
         inbound_rows = "<tr><td colspan='8'>No inbound messages</td></tr>"
 
+        # ScheduledMessage status counts
+    scheduled_by_status = pg.get("scheduled_by_status") or {}
+    scheduled_status_rows = "".join(
+        f"<tr>{td(k)}{td(v)}</tr>" for k, v in sorted(scheduled_by_status.items())
+    ) or "<tr><td colspan='2'>No data</td></tr>"
+
+    # Latest Scheduled Messages
+    latest_scheduled = pg.get("latest_scheduled") or []
+    scheduled_rows = ""
+    for s in latest_scheduled:
+        scheduled_rows += (
+            "<tr>"
+            f"{td(s.get('created_at'))}"
+            f"{td(s.get('updated_at'))}"
+            f"{td(s.get('status'))}"
+            f"{td(s.get('send_at'))}"
+            f"{td(s.get('wa_id'))}"
+            f"{td(s.get('to_chat_id'))}"
+            f"{td(s.get('workflow_id'))}"
+            f"{td(s.get('payload_preview'))}"
+            f"{td(s.get('id'))}"
+            "</tr>"
+        )
+    if not scheduled_rows:
+        scheduled_rows = "<tr><td colspan='9'>No scheduled messages</td></tr>"
+
+
     # Redis stream tail
     stream = (rd.get("stream") or {})
     stream_latest = stream.get("latest") or []
@@ -278,6 +337,29 @@ def debug_ui(token: str, count: int = 20):
       <tbody>{work_rows}</tbody>
     </table>
   </div>
+
+    <h2>Postgres: ScheduledMessage status counts</h2>
+  <div class="card">
+    <table>
+      <thead><tr>{th("status")}{th("count")}</tr></thead>
+      <tbody>{scheduled_status_rows}</tbody>
+    </table>
+  </div>
+
+  <h2>Postgres: Latest Scheduled Messages</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          {th("created_at")}{th("updated_at")}{th("status")}{th("send_at")}
+          {th("wa_id")}{th("to_chat_id")}{th("workflow_id")}
+          {th("payload_preview")}{th("id")}
+        </tr>
+      </thead>
+      <tbody>{scheduled_rows}</tbody>
+    </table>
+  </div>
+
 
   <h2>Postgres: Latest InboundMessages</h2>
   <div class="card">
