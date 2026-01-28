@@ -5,9 +5,10 @@ from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
-from handlers.utility import load_or_create_session
+from handlers.utility import load_or_create_session, load_business_by_wa_id, build_service_rows
 from runtime.session_state import parse_session_state, dump_session_state
 from reducers.client_reducer import reduce_session
+
 
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
@@ -75,12 +76,21 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
         flush=True,
     )
 
-    # TODO: Call the reducer here
-    result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage)
+    business = load_business_by_wa_id(db, inbound.phone_number_id)
+
+    ctx = {
+        "is_provider": business.is_provider(from_),
+        "services": business.services(),               # typed Pydantic list is OK
+        "timezone": business.timezone,
+        "booking_policy_mode": business.booking_policy_mode,
+        "default_provider_id": business.get_default_provider_id(),
+    }
+
+    result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage, ctx=ctx)
     
     print("Reducer result:", result, flush=True)
     # If this is a brand new session, you can initialize it explicitly:
     
     # don't commit here; let worker commit at the end
 
-    # ... next: reduce, emit new work items, etc.
+    # ... next: emit new work items, etc.
