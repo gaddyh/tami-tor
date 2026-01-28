@@ -36,8 +36,6 @@ from sqlalchemy.orm import Session
 
 from models.work_item import WorkItem
 from runtime.redis_client import enqueue_work
-from adapters.cloud_api_payloads import services_list_payload  # your builder
-
 
 def services_list_payload(rows) -> dict:
     return {
