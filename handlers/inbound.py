@@ -7,6 +7,7 @@ from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
 from handlers.utility import load_or_create_session
 from runtime.session_state import parse_session_state, dump_session_state
+from reducers.client_reducer import reduce_session
 
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
@@ -74,6 +75,10 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
         flush=True,
     )
 
+    # TODO: Call the reducer here
+    result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage)
+    
+    print("Reducer result:", result, flush=True)
     # If this is a brand new session, you can initialize it explicitly:
     
     # don't commit here; let worker commit at the end
