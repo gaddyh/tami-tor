@@ -99,6 +99,20 @@ def schedule_retry(wi: WorkItem, *, error: str) -> datetime:
     wi.updated_at = _now_utc()
     return run_after
 
+import asyncio
+import inspect
+from typing import Any, Callable
+
+def call_handler(handler: Callable[..., Any], db, wi) -> None:
+    """
+    Allow handlers to be sync or async.
+    Worker is sync, so we drive async handlers to completion.
+    """
+    if inspect.iscoroutinefunction(handler):
+        asyncio.run(handler(db, wi))
+    else:
+        handler(db, wi)
+
 
 def main() -> None:
     print("Worker started. Waiting for work...", flush=True)
@@ -164,7 +178,7 @@ def main() -> None:
                     emit_event(event="WORK_UNKNOWN_KIND", meta={"work_id": str(wi.work_id), "kind": wi.kind})
                     continue
 
-                handler(db, wi)
+                call_handler(handler, db, wi)
 
                 mark_done(wi)
                 db.commit()

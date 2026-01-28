@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
+from adapters.cloud_api import CloudAPIAdapter
 
 
-def handle_process_inbound(db: Session, wi: WorkItem) -> None:
+async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     """
     - load inbound message row via wi.ref_id
     - load/create session
@@ -31,5 +32,9 @@ def handle_process_inbound(db: Session, wi: WorkItem) -> None:
         {"work_id": str(wi.work_id), "ref_id": str(wi.ref_id), "message_id": message_id, "from": from_},
         flush=True,
     )
+    adapter = CloudAPIAdapter(phone_number_id)
+    rawMessage = await adapter.parse_incoming(raw)
+    print("Parsed message:", rawMessage, flush=True)
+
 
     # ... next: load/create Session, reduce, emit new work items, etc.
