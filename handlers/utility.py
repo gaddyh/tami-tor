@@ -30,8 +30,6 @@ def load_business_by_wa_id(db, phone_number_id: str) -> Business:
 
     return business
 
-from __future__ import annotations
-
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
