@@ -139,26 +139,6 @@ class CloudAPIAdapter():
                     quoted_sender_phone=quoted_from
                 )
 
-                if quoted_id:
-                    orig = MESSAGE_INDEX.get(quoted_id)
-                    if orig:
-                        otype = orig.get("type")
-                        rc.original_type = otype
-
-                        if otype == "text":
-                            rc.original_text = ((orig.get("text") or {}).get("body")
-                                                or orig.get("body") or "")
-                        elif otype in ("image", "video", "audio", "document"):
-                            om = orig.get(otype) or {}
-                            omid = om.get("id")
-                            rc.original_caption = om.get("caption")
-                            rc.original_mime_type = om.get("mime_type")
-                            rc.original_media_id = omid
-                            # Optional: resolve short-lived download URL (if token present)
-                            rc.original_media_url = await self._resolve_media_download_url(omid) if omid else None
-                    else:
-                        logger.info("Quoted message %s not found in index", quoted_id)
-
                 content.reply_context = rc
 
             # Optional: referral (ad attribution)
@@ -172,16 +152,10 @@ class CloudAPIAdapter():
                     image_url=ref.get("image_url")
                 )
 
-            print("identity", sender)
-
             return RawMessage(
-                sender=sender,
                 content=content,
-                chat_id=chat_id,
-                direction=message_direction,
                 message_data=message,
                 idempotency_key=message.get("id"),
-                wa_id=phone_number_id,
             )
 
         except Exception:

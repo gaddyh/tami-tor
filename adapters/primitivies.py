@@ -87,9 +87,9 @@ class ContentInfo:
 
 @dataclass
 class RawMessage:
-    sender: SenderInfo
+    sender: Optional[SenderInfo] = None
     content: ContentInfo
-    chat_id: str
+    chat_id: Optional[str] = None
     message_data: Any
     idempotency_key: str
-    wa_id: str
+    wa_id: Optional[str] = None
