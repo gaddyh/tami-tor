@@ -1,6 +1,7 @@
 
 from sqlalchemy import select
 from models.session import Session as ChatSession
+from sqlalchemy.orm import Session
 
 def get_business_id(phone_number_id: str, client_id: str) -> str:
     # TODO: Implement logic to get business_id from phone_number_id
