@@ -51,9 +51,6 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
             "session_id": str(session.session_id),
             "business_id": session.business_id,
             "client_id": session.client_id,
-            "text": rawMessage.text,
-            "button_reply": rawMessage.content.button_reply,
-            "list_reply": rawMessage.content.list_reply,
         },
         flush=True,
     )

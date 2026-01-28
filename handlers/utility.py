@@ -2,7 +2,7 @@
 from sqlalchemy import select
 from models.session import Session as ChatSession
 from sqlalchemy.orm import Session
-
+from datetime import datetime, timezone
 def get_business_id(phone_number_id: str, client_id: str) -> str:
     # TODO: Implement logic to get business_id from phone_number_id
     # This could be a lookup in a phone_number_to_business mapping
