@@ -10,34 +10,25 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session as OrmSession
 
 from db.session import SessionLocal
-from models.inbound_message import InboundMessage
-
-from runtime.redis_client import dequeue_inbound, enqueue_inbound, redis_client
+from models.work_item import WorkItem
+from runtime.redis_client import dequeue_work, enqueue_work, redis_client
 from runtime.events import emit_event
-from handlers.registry import INBOUND_HANDLERS
+from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 
-# Prefer inbound-specific config if you have it; otherwise reuse existing knobs.
-from apps.config import INBOUND_QUEUE_NAME, INBOUND_STALE_SECONDS  # type: ignore
+from apps.config import OUTBOX_STALE_SECONDS  # reuse your knob as “stale seconds”
 
-# ----------------------------
-# Time helpers
-# ----------------------------
+LOCK_TTL_SECONDS = int(OUTBOX_STALE_SECONDS)
+MAX_ATTEMPTS = 5
+
 
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
 def _backoff_seconds(attempt: int) -> int:
-    # attempt is 1-based
     return min(2 ** max(0, attempt - 1), 30)
 
-
-# ----------------------------
-# Redis locking (per conversation)
-# ----------------------------
-
-LOCK_TTL_SECONDS = int(INBOUND_STALE_SECONDS)
 
 _RELEASE_LOCK_LUA = """
 if redis.call("GET", KEYS[1]) == ARGV[1] then
@@ -48,308 +39,170 @@ end
 """
 
 
-def _lock_key(phone_number_id: str, from_: str) -> str:
-    return f"lock:inbound:{phone_number_id}:{from_}"
+def _lock_key(business_id: str, client_id: str) -> str:
+    return f"lock:{business_id}:{client_id}"
 
 
-def acquire_lock(phone_number_id: str, from_: str) -> tuple[bool, str]:
+def acquire_lock(business_id: str, client_id: str) -> tuple[bool, str]:
     token = str(uuid.uuid4())
-    ok = redis_client.set(
-        _lock_key(phone_number_id, from_),
-        token,
-        nx=True,
-        ex=LOCK_TTL_SECONDS,
-    )
+    ok = redis_client.set(_lock_key(business_id, client_id), token, nx=True, ex=LOCK_TTL_SECONDS)
     return bool(ok), token
 
 
-def release_lock(phone_number_id: str, from_: str, token: str) -> None:
+def release_lock(business_id: str, client_id: str, token: str) -> None:
     try:
-        redis_client.eval(_RELEASE_LOCK_LUA, 1, _lock_key(phone_number_id, from_), token)
+        redis_client.eval(_RELEASE_LOCK_LUA, 1, _lock_key(business_id, client_id), token)
     except Exception:
         pass
 
 
-# ----------------------------
-# Inbound DB operations
-# ----------------------------
-
-def claim_inbound(db: OrmSession, inbound_id: str) -> Optional[InboundMessage]:
-    """
-    Atomic claim:
-    pending -> processing
-    increments attempts
-    respects run_after
-    """
+def claim_work(db: OrmSession, work_id: str) -> Optional[WorkItem]:
     stmt = text("""
-        UPDATE inbound_messages
+        UPDATE work_items
         SET
             status = 'processing',
             attempts = attempts + 1,
             updated_at = NOW()
         WHERE
-            id = :inbound_id
+            work_id = :work_id
             AND status = 'pending'
             AND (run_after IS NULL OR run_after <= NOW())
-        RETURNING id
+        RETURNING work_id
     """)
-
-    row = db.execute(stmt, {"inbound_id": inbound_id}).mappings().first()
+    row = db.execute(stmt, {"work_id": work_id}).mappings().first()
     if not row:
         return None
-
-    inbound = db.get(InboundMessage, row["id"])
-    if inbound:
-        db.refresh(inbound)
-    return inbound
-
-
-def mark_done(inbound: InboundMessage) -> None:
-    inbound.status = "done"
-    inbound.last_error = None
-    inbound.updated_at = _now_utc()
+    wi = db.get(WorkItem, row["work_id"])
+    if wi:
+        db.refresh(wi)
+    return wi
 
 
-def mark_failed(inbound: InboundMessage, *, error: str, non_retryable: bool) -> None:
-    inbound.status = "failed"
-    inbound.last_error = error
-    inbound.updated_at = _now_utc()
-    # Optionally: stash marker in raw for debugging without a schema change
-    try:
-        inbound.raw = {**(inbound.raw or {}), "_non_retryable": bool(non_retryable)}
-    except Exception:
-        pass
+def mark_done(wi: WorkItem) -> None:
+    wi.status = "done"
+    wi.last_error = None
+    wi.updated_at = _now_utc()
 
 
-def schedule_retry(inbound: InboundMessage, *, error: str) -> datetime:
-    delay = _backoff_seconds(int(inbound.attempts))
+def mark_failed(wi: WorkItem, *, error: str) -> None:
+    wi.status = "failed"
+    wi.last_error = error
+    wi.updated_at = _now_utc()
+
+
+def schedule_retry(wi: WorkItem, *, error: str) -> datetime:
+    delay = _backoff_seconds(int(wi.attempts))
     run_after = _now_utc() + timedelta(seconds=delay)
-
-    inbound.status = "pending"
-    inbound.run_after = run_after
-    inbound.last_error = error
-    inbound.updated_at = _now_utc()
+    wi.status = "pending"
+    wi.run_after = run_after
+    wi.last_error = error
+    wi.updated_at = _now_utc()
     return run_after
 
 
-# ----------------------------
-# Handler contract
-# ----------------------------
-
-# HANDLERS maps "message kind" -> handler(db, inbound)
-# Message kind defaults to inbound.raw["type"] (e.g., "text", "interactive", "image", ...)
-Handler = Callable[[OrmSession, InboundMessage], None]
-
-
-def _inbound_kind(inbound: InboundMessage) -> str:
-    raw = inbound.raw or {}
-    kind = raw.get("type") or ""
-    return kind if isinstance(kind, str) and kind else "unknown"
-
-
-# ----------------------------
-# Worker loop
-# ----------------------------
-
-MAX_ATTEMPTS = 5
-
-
 def main() -> None:
-    print("Worker started. Waiting for inbound jobs...", flush=True)
+    print("Worker started. Waiting for work...", flush=True)
 
     while True:
-        inbound_id = dequeue_inbound(block_seconds=10)
-        if not inbound_id:
+        work_id = dequeue_work(block_seconds=10)
+        if not work_id:
             continue
 
-        emit_event(
-            event="INBOUND_DEQUEUED",
-            inbound_id=inbound_id,
-            meta={"where": "worker", "queue": INBOUND_QUEUE_NAME},
-        )
+        emit_event(event="WORK_DEQUEUED", meta={"work_id": work_id, "where": "worker"})
 
-        claimed: Optional[InboundMessage] = None
+        wi: Optional[WorkItem] = None
         lock_token: Optional[str] = None
 
         try:
             with SessionLocal() as db:
-                claimed = claim_inbound(db, inbound_id)
-                if not claimed:
+                wi = claim_work(db, work_id)
+                if not wi:
                     continue
 
-                kind = _inbound_kind(claimed)
-
                 emit_event(
-                    event="INBOUND_CLAIMED",
-                    inbound_id=str(claimed.id),
+                    event="WORK_CLAIMED",
                     meta={
-                        "where": "worker",
-                        "kind": kind,
-                        "attempt": int(claimed.attempts),
-                        "message_id": claimed.message_id,
-                        "phone_number_id": claimed.phone_number_id,
-                        "from": claimed.from_,
+                        "work_id": str(wi.work_id),
+                        "kind": wi.kind,
+                        "attempt": int(wi.attempts),
+                        "business_id": wi.business_id or "",
+                        "client_id": wi.client_id or "",
                     },
                 )
 
-                acquired, lock_token = acquire_lock(
-                    claimed.phone_number_id,
-                    claimed.from_,
-                )
+                # Lock only if we have business/client context
+                if wi.business_id and wi.client_id:
+                    acquired, lock_token = acquire_lock(wi.business_id, wi.client_id)
+                    if not acquired:
+                        run_after = _now_utc() + timedelta(seconds=1)
+                        wi.status = "pending"
+                        wi.run_after = run_after
+                        wi.updated_at = _now_utc()
+                        db.commit()
 
-                if not acquired:
-                    run_after = _now_utc() + timedelta(seconds=1)
-                    claimed.status = "pending"
-                    claimed.run_after = run_after
-                    claimed.updated_at = _now_utc()
-                    db.commit()
+                        emit_event(
+                            event="LOCK_MISSED",
+                            meta={
+                                "work_id": str(wi.work_id),
+                                "business_id": wi.business_id,
+                                "client_id": wi.client_id,
+                                "run_after": run_after.isoformat(),
+                            },
+                        )
+                        enqueue_work(str(wi.work_id))
+                        continue
 
                     emit_event(
-                        event="INBOUND_LOCK_MISSED",
-                        inbound_id=str(claimed.id),
-                        meta={
-                            "where": "worker",
-                            "phone_number_id": claimed.phone_number_id,
-                            "from": claimed.from_,
-                            "run_after": run_after.isoformat(),
-                        },
+                        event="LOCK_ACQUIRED",
+                        meta={"work_id": str(wi.work_id), "business_id": wi.business_id, "client_id": wi.client_id},
                     )
 
-                    enqueue_inbound(str(claimed.id))
-                    continue
-
-                emit_event(
-                    event="INBOUND_LOCK_ACQUIRED",
-                    inbound_id=str(claimed.id),
-                    meta={
-                        "where": "worker",
-                        "phone_number_id": claimed.phone_number_id,
-                        "from": claimed.from_,
-                    },
-                )
-
-                kind = claimed.raw.get("type") or "unknown"
-
-                handler = INBOUND_HANDLERS.get(kind) or INBOUND_HANDLERS.get("*")
+                handler = WORK_HANDLERS.get(wi.kind)
                 if not handler:
-                    mark_failed(
-                        claimed,
-                        error=f"unknown inbound kind: {kind}",
-                        non_retryable=True,
-                    )
+                    mark_failed(wi, error=f"unknown work kind: {wi.kind}")
                     db.commit()
-
-                    emit_event(
-                        event="INBOUND_UNKNOWN_KIND",
-                        inbound_id=str(claimed.id),
-                        meta={
-                            "where": "worker",
-                            "kind": kind,
-                            "message_id": claimed.message_id,
-                            "phone_number_id": claimed.phone_number_id,
-                            "from": claimed.from_,
-                            "attempt": int(claimed.attempts),
-                        },
-                    )
+                    emit_event(event="WORK_UNKNOWN_KIND", meta={"work_id": str(wi.work_id), "kind": wi.kind})
                     continue
 
-                # Execute handler (no external IO in web; worker can do IO as needed)
-                handler(db, claimed)
+                handler(db, wi)
 
-                mark_done(claimed)
+                mark_done(wi)
                 db.commit()
 
-                emit_event(
-                    event="INBOUND_DONE",
-                    inbound_id=str(claimed.id),
-                    meta={
-                        "where": "worker",
-                        "kind": kind,
-                        "attempt": int(claimed.attempts),
-                        "message_id": claimed.message_id,
-                        "phone_number_id": claimed.phone_number_id,
-                        "from": claimed.from_,
-                    },
-                )
+                emit_event(event="WORK_DONE", meta={"work_id": str(wi.work_id), "kind": wi.kind, "attempt": int(wi.attempts)})
 
         except NonRetryableError as e:
             err = str(e)
-
-            emit_event(
-                event="INBOUND_FAILED",
-                inbound_id=inbound_id,
-                meta={"where": "worker", "error": err, "kind": "non_retryable"},
-            )
-
+            emit_event(event="WORK_FAILED", meta={"work_id": work_id, "error": err, "kind": "non_retryable"})
             with SessionLocal() as db:
-                m = db.execute(
-                    select(InboundMessage).where(InboundMessage.id == inbound_id)
-                ).scalar_one_or_none()
-                if m and m.status == "processing":
-                    mark_failed(m, error=err, non_retryable=True)
+                o = db.get(WorkItem, work_id)
+                if o and o.status == "processing":
+                    mark_failed(o, error=err)
                     db.commit()
 
         except Exception as e:
             err = str(e)
-
-            emit_event(
-                event="INBOUND_ERROR",
-                inbound_id=inbound_id,
-                meta={"where": "worker", "error": err},
-            )
+            emit_event(event="WORK_ERROR", meta={"work_id": work_id, "error": err})
 
             with SessionLocal() as db:
-                m = db.execute(
-                    select(InboundMessage).where(InboundMessage.id == inbound_id)
-                ).scalar_one_or_none()
-
-                if not m or m.status != "processing":
+                o = db.get(WorkItem, work_id)
+                if not o or o.status != "processing":
                     pass
-                elif int(m.attempts) >= MAX_ATTEMPTS:
-                    mark_failed(m, error=err, non_retryable=False)
+                elif int(o.attempts) >= MAX_ATTEMPTS:
+                    mark_failed(o, error=err)
                     db.commit()
-
-                    emit_event(
-                        event="INBOUND_DLQ_MOVED",
-                        inbound_id=str(m.id),
-                        meta={
-                            "where": "worker",
-                            "attempt": int(m.attempts),
-                            "message_id": m.message_id,
-                            "phone_number_id": m.phone_number_id,
-                            "from": m.from_,
-                            "error": err,
-                        },
-                    )
+                    emit_event(event="WORK_DLQ", meta={"work_id": work_id, "attempt": int(o.attempts), "error": err})
                 else:
-                    run_after = schedule_retry(m, error=err)
+                    run_after = schedule_retry(o, error=err)
                     db.commit()
-
-                    emit_event(
-                        event="INBOUND_RETRY_SCHEDULED",
-                        inbound_id=str(m.id),
-                        meta={
-                            "where": "worker",
-                            "attempt": int(m.attempts),
-                            "run_after": run_after.isoformat(),
-                            "message_id": m.message_id,
-                            "phone_number_id": m.phone_number_id,
-                            "from": m.from_,
-                            "error": err,
-                        },
-                    )
-
-                    enqueue_inbound(str(m.id))
+                    enqueue_work(str(o.work_id))
+                    emit_event(event="WORK_RETRY_SCHEDULED", meta={"work_id": work_id, "run_after": run_after.isoformat(), "attempt": int(o.attempts)})
 
             time.sleep(0.2)
 
         finally:
-            if claimed and lock_token:
-                release_lock(
-                    claimed.phone_number_id,
-                    claimed.from_,
-                    lock_token,
-                )
+            if wi and lock_token and wi.business_id and wi.client_id:
+                release_lock(wi.business_id, wi.client_id, lock_token)
 
 
 if __name__ == "__main__":

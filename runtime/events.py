@@ -9,7 +9,7 @@ from db.session import SessionLocal
 from models.event_log import EventLog
 from runtime.redis_client import redis_client
 
-STREAM_OUTBOX_EVENTS = "events:outbox"
+STREAM_OUTBOX_EVENTS = "events:work"
 
 
 def _now_iso() -> str:

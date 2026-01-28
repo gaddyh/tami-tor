@@ -118,6 +118,21 @@ def hello(inp: HelloIn) -> HelloOut:
             outbox_id=str(outbox.outbox_id),
             status="enqueued",
         )
+import json
+import os
+
+from fastapi import Header, HTTPException
+from sqlalchemy import select, func
+
+from db.session import SessionLocal
+from runtime.redis_client import redis_client, QUEUE_WORK  # make sure QUEUE_WORK exists
+from apps.config import WORK_STREAM_KEY  # or whatever you named your stream key
+
+from models.work_item import WorkItem
+from models.inbound_message import InboundMessage
+
+from dotenv import load_dotenv
+load_dotenv(".venv/.env")
 
 @app.get("/debug/state")
 def debug_state(
@@ -130,26 +145,23 @@ def debug_state(
         raise HTTPException(status_code=401, detail="unauthorized")
 
     # clamp
-    if count < 1:
-        count = 1
-    if count > 100:
-        count = 100
+    count = max(1, min(100, count))
 
     # --- Redis ---
     redis_queue_len = None
     redis_stream = []
     redis_errors = []
 
+    stream_name = os.getenv("WORK_STREAM_KEY", WORK_STREAM_KEY)
+
     try:
-        redis_queue_len = redis_client.llen(QUEUE_OUTBOX)
+        redis_queue_len = redis_client.llen(QUEUE_WORK)
     except Exception as e:
         redis_errors.append(f"queue_len: {e}")
 
     try:
-        # last N events (newest first)
-        entries = redis_client.xrevrange("events:outbox", max="+", min="-", count=count)
+        entries = redis_client.xrevrange(stream_name, max="+", min="-", count=count)
         for entry_id, fields in entries:
-            # fields are strings; try to parse meta if present
             meta = fields.get("meta")
             if meta:
                 try:
@@ -162,48 +174,91 @@ def debug_state(
 
     # --- Postgres ---
     with SessionLocal() as db:
-        outbox_by_status = dict(
+        # WorkItem status counts
+        work_by_status = dict(
             db.execute(
-                select(Outbox.status, func.count()).group_by(Outbox.status)
+                select(WorkItem.status, func.count()).group_by(WorkItem.status)
             ).all()
         )
 
-        latest_outbox = db.execute(
-            select(Outbox)
-            .order_by(Outbox.updated_at.desc())
-            .limit(5)
+        latest_work = db.execute(
+            select(WorkItem)
+            .order_by(WorkItem.updated_at.desc())
+            .limit(10)
         ).scalars().all()
 
-        latest_outbox_payload = [
+        latest_work_payload = [
             {
-                "outbox_id": str(o.outbox_id),
-                "type": o.type,
-                "status": o.status,
-                "attempts": int(o.attempts),
-                "business_id": o.business_id,
-                "client_id": o.client_id,
-                "session_id": str(o.session_id),
-                "run_after": o.run_after.isoformat() if o.run_after else None,
-                "updated_at": o.updated_at.isoformat() if o.updated_at else None,
-                "created_at": o.created_at.isoformat() if o.created_at else None,
+                "work_id": str(w.work_id),
+                "kind": w.kind,
+                "ref_id": str(w.ref_id),
+                "status": w.status,
+                "attempts": int(w.attempts),
+                "business_id": w.business_id,
+                "client_id": w.client_id,
+                "run_after": w.run_after.isoformat() if w.run_after else None,
+                "updated_at": w.updated_at.isoformat() if w.updated_at else None,
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+                "last_error": w.last_error,
             }
-            for o in latest_outbox
+            for w in latest_work
+        ]
+
+        # InboundMessage status counts (optional but useful)
+        inbound_by_status = dict(
+            db.execute(
+                select(InboundMessage.status, func.count()).group_by(InboundMessage.status)
+            ).all()
+        )
+
+        latest_inbound = db.execute(
+            select(InboundMessage)
+            .order_by(InboundMessage.updated_at.desc())
+            .limit(10)
+        ).scalars().all()
+
+        latest_inbound_payload = [
+            {
+                "id": str(m.id),
+                "message_id": m.message_id,
+                "phone_number_id": m.phone_number_id,
+                "from": m.from_,
+                "timestamp": int(m.timestamp) if m.timestamp is not None else None,
+                "status": m.status,
+                "attempts": int(m.attempts),
+                "run_after": m.run_after.isoformat() if m.run_after else None,
+                "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "last_error": m.last_error,
+            }
+            for m in latest_inbound
         ]
 
     return {
         "postgres": {
-            "outbox_by_status": outbox_by_status,
-            "latest_outbox": latest_outbox_payload,
+            "work_by_status": work_by_status,
+            "latest_work": latest_work_payload,
+            "inbound_by_status": inbound_by_status,
+            "latest_inbound": latest_inbound_payload,
         },
         "redis": {
-            "queue": {"name": QUEUE_OUTBOX, "length": redis_queue_len},
-            "stream": {"name": "events:outbox", "latest": redis_stream},
+            "queue": {"name": QUEUE_WORK, "length": redis_queue_len},
+            "stream": {"name": stream_name, "latest": redis_stream},
             "errors": redis_errors,
         },
     }
 
+
 from fastapi.responses import HTMLResponse
 from html import escape
+from html import escape
+import os
+
+from fastapi import HTTPException
+from fastapi.responses import HTMLResponse
+
+from apps.config import WORK_QUEUE_NAME  # reuse the same config var you already have
+
 
 @app.get("/debug/ui", response_class=HTMLResponse)
 def debug_ui(token: str, count: int = 20):
@@ -214,58 +269,99 @@ def debug_ui(token: str, count: int = 20):
     # Reuse your existing JSON debug source
     data = debug_state(count=count, x_debug_token=expected)
 
-    pg = data["postgres"]
-    rd = data["redis"]
+    pg = data.get("postgres", {})
+    rd = data.get("redis", {})
 
     # Helpers
     def td(x): return f"<td>{escape(str(x))}</td>"
     def th(x): return f"<th>{escape(str(x))}</th>"
 
-    # Outbox status counts
-    status_rows = "".join(
+    # ---------------------------
+    # Work Items (new)
+    # ---------------------------
+    work_by_status = pg.get("work_by_status") or {}
+    work_status_rows = "".join(
         f"<tr>{td(k)}{td(v)}</tr>"
-        for k, v in sorted(pg["outbox_by_status"].items())
+        for k, v in sorted(work_by_status.items())
     ) or "<tr><td colspan='2'>No data</td></tr>"
 
-    # Latest outbox
-    outbox_rows = ""
-    for o in pg["latest_outbox"]:
-        outbox_rows += (
+    latest_work = pg.get("latest_work") or []
+    work_rows = ""
+    for w in latest_work:
+        work_rows += (
             "<tr>"
-            f"{td(o['created_at'])}"
-            f"{td(o['updated_at'])}"
-            f"{td(o['status'])}"
-            f"{td(o['attempts'])}"
-            f"{td(o['type'])}"
-            f"{td(o['business_id'])}"
-            f"{td(o['client_id'])}"
-            f"{td(o['outbox_id'])}"
+            f"{td(w.get('created_at'))}"
+            f"{td(w.get('updated_at'))}"
+            f"{td(w.get('status'))}"
+            f"{td(w.get('attempts'))}"
+            f"{td(w.get('kind'))}"
+            f"{td(w.get('business_id'))}"
+            f"{td(w.get('client_id'))}"
+            f"{td(w.get('ref_id'))}"
+            f"{td(w.get('work_id'))}"
             "</tr>"
         )
-    if not outbox_rows:
-        outbox_rows = "<tr><td colspan='8'>No outbox rows</td></tr>"
+    if not work_rows:
+        work_rows = "<tr><td colspan='9'>No work items</td></tr>"
 
-    # Redis stream
+    # ---------------------------
+    # Inbound Messages (new)
+    # ---------------------------
+    inbound_by_status = pg.get("inbound_by_status") or {}
+    inbound_status_rows = "".join(
+        f"<tr>{td(k)}{td(v)}</tr>"
+        for k, v in sorted(inbound_by_status.items())
+    ) or "<tr><td colspan='2'>No data</td></tr>"
+
+    latest_inbound = pg.get("latest_inbound") or []
+    inbound_rows = ""
+    for m in latest_inbound:
+        inbound_rows += (
+            "<tr>"
+            f"{td(m.get('created_at'))}"
+            f"{td(m.get('updated_at'))}"
+            f"{td(m.get('status'))}"
+            f"{td(m.get('attempts'))}"
+            f"{td(m.get('phone_number_id'))}"
+            f"{td(m.get('from'))}"
+            f"{td(m.get('message_id'))}"
+            f"{td(m.get('timestamp'))}"
+            f"{td(m.get('id'))}"
+            "</tr>"
+        )
+    if not inbound_rows:
+        inbound_rows = "<tr><td colspan='9'>No inbound messages</td></tr>"
+
+    # ---------------------------
+    # Redis (updated for work queue)
+    # ---------------------------
+    queue = rd.get("queue", {}) or {}
+    queue_name = queue.get("name") or OUTBOX_QUEUE_NAME  # fall back
+    queue_len = queue.get("length", "?")
+    redis_errs = "<br/>".join(escape(x) for x in (rd.get("errors") or [])) or "None"
+
+    # ---------------------------
+    # Redis Stream (work events)
+    # ---------------------------
+    stream = (rd.get("stream") or {})
+    stream_latest = stream.get("latest") or []
     stream_rows = ""
-    for e in rd["stream"]["latest"]:
-        f = e["fields"]
+    for e in stream_latest:
+        f = e.get("fields", {}) or {}
         stream_rows += (
             "<tr>"
             f"{td(f.get('ts'))}"
             f"{td(f.get('event'))}"
-            f"{td(f.get('type'))}"
+            f"{td(f.get('kind') or f.get('type'))}"
             f"{td(f.get('business_id'))}"
             f"{td(f.get('client_id'))}"
-            f"{td(f.get('outbox_id'))}"
+            f"{td(f.get('work_id') or f.get('outbox_id') or f.get('inbound_id'))}"
             f"{td(f.get('attempt'))}"
             f"{td(f.get('meta'))}"
             "</tr>"
         )
     if not stream_rows:
         stream_rows = "<tr><td colspan='8'>No stream events</td></tr>"
-
-    queue_len = rd["queue"]["length"]
-    redis_errs = "<br/>".join(escape(x) for x in rd.get("errors", [])) or "None"
 
     html = f"""
 <!doctype html>
@@ -287,9 +383,10 @@ def debug_ui(token: str, count: int = 20):
 </head>
 <body>
   <h1>tami debug</h1>
+
   <div class="row">
     <div class="card">
-      <div><b>Redis queue</b> <span class="small">(jobs:outbox)</span></div>
+      <div><b>Redis queue</b> <span class="small">({escape(str(queue_name))})</span></div>
       <div class="mono" style="font-size:22px">{escape(str(queue_len))}</div>
     </div>
     <div class="card">
@@ -298,24 +395,45 @@ def debug_ui(token: str, count: int = 20):
     </div>
   </div>
 
-  <h2>Postgres: Outbox status counts</h2>
+  <h2>Postgres: WorkItem status counts</h2>
   <div class="card">
     <table>
       <thead><tr>{th("status")}{th("count")}</tr></thead>
-      <tbody>{status_rows}</tbody>
+      <tbody>{work_status_rows}</tbody>
     </table>
   </div>
 
-  <h2>Postgres: Latest outbox</h2>
+  <h2>Postgres: Latest WorkItems</h2>
   <div class="card">
     <table>
       <thead>
         <tr>
           {th("created_at")}{th("updated_at")}{th("status")}{th("attempts")}
-          {th("type")}{th("business_id")}{th("client_id")}{th("outbox_id")}
+          {th("kind")}{th("business_id")}{th("client_id")}{th("ref_id")}{th("work_id")}
         </tr>
       </thead>
-      <tbody>{outbox_rows}</tbody>
+      <tbody>{work_rows}</tbody>
+    </table>
+  </div>
+
+  <h2>Postgres: InboundMessage status counts</h2>
+  <div class="card">
+    <table>
+      <thead><tr>{th("status")}{th("count")}</tr></thead>
+      <tbody>{inbound_status_rows}</tbody>
+    </table>
+  </div>
+
+  <h2>Postgres: Latest InboundMessages</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          {th("created_at")}{th("updated_at")}{th("status")}{th("attempts")}
+          {th("phone_number_id")}{th("from")}{th("message_id")}{th("timestamp")}{th("id")}
+        </tr>
+      </thead>
+      <tbody>{inbound_rows}</tbody>
     </table>
   </div>
 
@@ -324,8 +442,8 @@ def debug_ui(token: str, count: int = 20):
     <table>
       <thead>
         <tr>
-          {th("ts")}{th("event")}{th("type")}{th("business_id")}
-          {th("client_id")}{th("outbox_id")}{th("attempt")}{th("meta")}
+          {th("ts")}{th("event")}{th("kind/type")}{th("business_id")}
+          {th("client_id")}{th("work_id/outbox_id/inbound_id")}{th("attempt")}{th("meta")}
         </tr>
       </thead>
       <tbody>{stream_rows}</tbody>
@@ -340,7 +458,6 @@ def debug_ui(token: str, count: int = 20):
 """
     return HTMLResponse(html)
 
-
 # apps/bot.py (or wherever your FastAPI app is)
 
 import hmac
@@ -353,8 +470,6 @@ from fastapi import FastAPI, Request, Header, HTTPException
 from fastapi.responses import Response, JSONResponse
 
 from apps.webhook_ingest import persist_inbound_and_enqueue
-
-app = FastAPI()
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "...")
 APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
