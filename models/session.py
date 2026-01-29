@@ -4,7 +4,7 @@ from sqlalchemy import Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
-
+from sqlalchemy.ext.mutable import MutableDict
 from db.base import Base
 
 
@@ -27,10 +27,11 @@ class Session(Base):
     )
 
     state_json: Mapped[dict] = mapped_column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=False,
         server_default="{}",
     )
+
 
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True),
