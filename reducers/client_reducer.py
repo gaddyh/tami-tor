@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from handlers.utility import build_service_rows
+from handlers.utility import build_service_rows, get_list_reply_id
 from models.session_state import SessionFlow, SessionStep
 from adapters.primitivies import RawMessage
-from typing import Any, List, Literal, TypedDict, Union
+from typing import Any, Literal, TypedDict, Union
 
 class ListRow(TypedDict):
     id: str          # payload you get back in list_reply.id
@@ -64,9 +64,40 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
 
 
         if step == SessionStep.SERVICE_PICK:
-            # later: extract service intent from msg
-            # for now: just echo / placeholder
-            effects.append({"kind": "SEND_TEXT", "to": "client", "text": "Got it. Now pick a time slot."})
+            selected_service_id = get_list_reply_id(msg)
+
+            if not selected_service_id:
+                # user sent something else while we're expecting a list selection
+                effects.append({
+                    "kind": "SEND_TEXT",
+                    "to": "client",
+                    "text": "בחרי שירות מהרשימה בבקשה 🙂",
+                })
+                return ReduceResult(flow=flow, step=SessionStep.SERVICE_PICK, data=d, effects=effects)
+
+            # validate against ctx services
+            services = ctx.get("services") or []
+            service = next((s for s in services if getattr(s, "id", None) == selected_service_id), None)
+            if not service:
+                effects.append({
+                    "kind": "SEND_TEXT",
+                    "to": "client",
+                    "text": "לא מצאתי את השירות הזה. נסי לבחור שוב מהרשימה.",
+                })
+                return ReduceResult(flow=flow, step=SessionStep.SERVICE_PICK, data=d, effects=effects)
+
+            # persist in session data
+            d["service_id"] = selected_service_id
+            d["service_name"] = getattr(service, "name", None)
+
+            # next step: ask for slots (later you'll send slots list)
+            effects.append({
+                "kind": "SEND_TEXT",
+                "to": "client",
+                "text": f"מעולה ✅ {service.name}. עכשיו בחרי זמן פנוי.",
+            })
+            # or: effects.append({"kind": "SEND_SLOTS_LIST", ...})
+
             return ReduceResult(flow=flow, step=SessionStep.SLOTS_PICK, data=d, effects=effects)
 
         if step == SessionStep.SLOTS_PICK:

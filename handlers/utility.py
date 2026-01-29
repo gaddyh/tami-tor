@@ -10,6 +10,13 @@ def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")
     return datetime.now(tz)
 
+def get_list_reply_id(msg) -> str | None:
+    # adjust to your RawMessage shape
+    c = getattr(msg, "content", None)
+    lr = getattr(c, "list_reply", None) if c else None
+    payload = getattr(lr, "payload", None) if lr else None
+    return payload or None
+
 def get_business_id(phone_number_id: str, client_id: str) -> str:
     # TODO: Implement logic to get business_id from phone_number_id
     # This could be a lookup in a phone_number_to_business mapping
