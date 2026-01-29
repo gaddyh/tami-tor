@@ -26,6 +26,8 @@ from fastapi import FastAPI, Request, Header, HTTPException, Query
 from fastapi.responses import PlainTextResponse, HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import Response
+from fastapi.templating import Jinja2Templates
+from adapters.google.oauth import google_router
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +36,8 @@ from contextlib import asynccontextmanager, suppress
 from typing import Optional
 
 app = FastAPI(title="tami")
+app.include_router(google_router) #auth connect
+templates = Jinja2Templates(directory="apps/templates")
 
 
 class HelloIn(BaseModel):
@@ -46,6 +50,22 @@ class HelloOut(BaseModel):
     outbox_id: str
     status: str
 
+
+@app.get("/success", response_class=HTMLResponse)
+async def google_connect_success(request: Request):
+    return templates.TemplateResponse("google_success.html", {"request": request})
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+@app.get("/connect", response_class=HTMLResponse)
+async def google_connect_page(request: Request):
+        return templates.TemplateResponse("google_connect.html", {"request": request})
 
 @app.get("/health")
 def health():

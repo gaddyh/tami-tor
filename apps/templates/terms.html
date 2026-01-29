@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Terms of Service - Tami</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { counter-reset: section; }
+    h2::before {
+      counter-increment: section;
+      content: counter(section) ") ";
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+  <main class="flex-1 max-w-3xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">Terms of Service</h1>
+    <p class="text-sm text-slate-400 mb-8">Last updated: August 18, 2025</p>
+
+    <h2 class="text-xl font-semibold mb-2">Agreement to Terms</h2>
+    <p class="mb-4">These Terms govern your access to and use of Tami (the "Service") provided by Tami Ltd ("Tami", "we", "us"). By using the Service, you agree to these Terms.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Description of Service</h2>
+    <p class="mb-4">Tami provides tools for scheduled messaging, AI drafting/summarization, and search over user-provided content. Tami is not affiliated with WhatsApp or Meta.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Accounts & Eligibility</h2>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li>You must provide accurate information and keep it updated.</li>
+      <li>You are responsible for maintaining the security of your account and devices.</li>
+    </ul>
+
+    <h2 class="text-xl font-semibold mb-2">Your Content & License</h2>
+    <p class="mb-4">You retain ownership of your content. You grant Tami a worldwide, non-exclusive, royalty-free license to host, process, and display it solely to provide and improve the Service.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Acceptable Use</h2>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li>No unlawful, harmful, infringing, or spam activity.</li>
+      <li>Obtain required consents for messaging recipients and comply with privacy laws.</li>
+      <li>No reverse engineering, bypassing security, or abusing rate limits.</li>
+      <li>No use in life-critical or high-risk scenarios.</li>
+    </ul>
+
+    <h2 class="text-xl font-semibold mb-2">Third-Party Dependencies & Delivery</h2>
+    <div class="bg-slate-800 border border-slate-700 rounded p-4 mb-4 text-sm">
+      The Service depends on third-party networks and providers (including WhatsApp, device availability, AI vendors). We do not guarantee uninterrupted service or delivery times. Scheduled messages may be delayed, duplicated, or not delivered.
+      Scheduled messages include a brief automatic retry window; if delivery still fails, Tami will notify you and require manual resend.
+    </div>
+
+    <h2 class="text-xl font-semibold mb-2">Scheduled Messaging & Retries</h2>
+    <p class="mb-4">
+      At the scheduled time Tami attempts immediate delivery. If delivery fails due to a transient condition
+      (e.g., device offline, network hiccup, temporary provider error), Tami performs a fast automatic retry
+      within a short retry window. If delivery still fails, the message is marked <span class="font-semibold">Action Required</span>
+      and you are notified so you can manually send or reschedule.
+    </p>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li><span class="font-semibold">Fast retry:</span> a limited burst of automatic retries shortly after the scheduled time.</li>
+      <li><span class="font-semibold">Failure notification:</span> in-app alert (and email/WhatsApp if configured) with the failed item highlighted.</li>
+      <li><span class="font-semibold">Manual control:</span> Tami does not continue attempting indefinitely; you can resend, edit, or delete.</li>
+      <li><span class="font-semibold">Limits:</span> Delivery may still fail due to platform restrictions, device state, or provider outages. See the sections “Third-Party Dependencies & Delivery” and “Limitation of Liability”.</li>
+    </ul>
+    <div class="bg-slate-800 border border-slate-700 rounded p-4 mb-4 text-sm">
+      Scheduled messaging is not intended for life-critical or high-risk scenarios. For time-sensitive events, keep a manual fallback.
+    </div>
+
+    <h2 class="text-xl font-semibold mb-2">Service Levels</h2>
+    <p class="mb-4">The Service is provided on a best-effort basis and “as is”. Unless a separate signed SLA applies, no uptime or delivery guarantees are offered.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Fees, Billing, Refunds</h2>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li>Fees are charged per the plan you select. Taxes may apply.</li>
+      <li>Except as required by law, payments are non-refundable. Credits may be issued at our discretion.</li>
+      <li>Plans may include usage limits or fair-use thresholds.</li>
+    </ul>
+
+    <h2 class="text-xl font-semibold mb-2">Refund Guarantee</h2>
+    <p class="mb-4">
+      If you are unsatisfied, you may request a full refund within 14 days of your initial payment.
+      After this period, all fees are non-refundable except as required by law. Credits or goodwill
+      refunds may be issued at our discretion.
+    </p>
+
+    <h2 class="text-xl font-semibold mb-2">Changes</h2>
+    <p class="mb-4">We may modify features. Continued use after changes constitutes acceptance.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Termination</h2>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li>You may stop using the Service at any time.</li>
+      <li>We may suspend or terminate access for breach, risk, or legal compliance.</li>
+      <li>Upon termination, we will delete or de-identify your content per our <a href="/privacy" class="text-indigo-400 hover:underline">Privacy Policy</a>.</li>
+    </ul>
+
+    <h2 class="text-xl font-semibold mb-2">Indemnification</h2>
+    <p class="mb-4">
+      You agree to indemnify and hold harmless Tami and its affiliates from and against any claims,
+      liabilities, damages, losses, and expenses (including legal fees) arising from your use of the
+      Service, your violation of these Terms, or your violation of any applicable laws or third-party
+      rights.
+    </p>
+
+    <h2 class="text-xl font-semibold mb-2">Disclaimers</h2>
+    <p class="mb-4 text-sm">The Service is provided “AS IS” and “AS AVAILABLE”, without warranties of any kind. We do not warrant delivery times or error-free operation.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Limitation of Liability</h2>
+    <div class="bg-slate-800 border border-slate-700 rounded p-4 mb-4 text-sm">
+      To the maximum extent permitted by law, Tami and its team will not be liable for indirect, incidental, or consequential damages. Our total liability will not exceed the greater of (a) fees paid in the last 3 months or (b) $100.
+    </div>
+
+    <h2 class="text-xl font-semibold mb-2">Governing Law & Dispute Resolution</h2>
+    <p class="mb-4">
+      These Terms shall be governed by and construed under the laws of Israel, without regard to its
+      conflict of laws principles. Any dispute arising from or relating to the Service shall be
+      exclusively resolved in the competent courts of Tel Aviv, Israel.
+    </p>
+
+    <h2 class="text-xl font-semibold mb-2">Force Majeure</h2>
+    <p class="mb-4">
+      We are not responsible for any failure or delay caused by events beyond our reasonable control,
+      including acts of God, natural disasters, labor disputes, internet or utility failures,
+      governmental actions, or third-party service interruptions (including WhatsApp or API providers).
+    </p>
+
+  </main>
+
+  <footer class="border-t border-slate-700 py-6 text-center text-xs text-slate-400">
+    © <span id="year"></span> Tami. All rights reserved.
+  </footer>
+  <script>document.getElementById('year').textContent = new Date().getFullYear()</script>
+</body>
+</html>

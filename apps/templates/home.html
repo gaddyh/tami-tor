@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>חיבור Google - Tami AI Bot</title>
+
+  <!-- SEO / Social -->
+  <meta name="description" content="חברו את חשבון Google ל־Tami AI Bot — עוזר ה-AI המתקדם ביותר לוואטסאפ: הפעלה קולית, הודעות מתוזמנות, תזכורות, ניהול משימות, אינטגרציה עם Google Calendar ו-Contacts." />
+  <meta property="og:title" content="חיבור Google - Tami AI Bot" />
+  <meta property="og:description" content="התחברו בבטחה עם Google והפעילו את תמי — הבוט האישי החכם לוואטסאפ." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="Tami Logo.jpg" />
+  <meta name="theme-color" content="#25D366" />
+
+  <style>
+    :root{
+      --wa-green:#25D366;
+      --wa-green-dark:#075E54;
+      --wa-green-mid:#128C7E;
+      --bg:#f0f2f5;
+      --card:#ffffff;
+      --text:#0b141a;
+      --muted:#667781;
+      --border:#e6e6e6;
+      --success:#22c55e;
+      --warning:#f59e0b;
+      --error:#ef4444;
+      --radius:14px;
+      --shadow:0 8px 30px rgba(0,0,0,.08);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Heebo,Arial,sans-serif;
+      background:var(--bg); color:var(--text);
+      display:flex; flex-direction:column;
+    }
+
+    /* Header (hero) */
+    .hero{
+      background:
+        radial-gradient(1000px 300px at 80% -100px, rgba(255,255,255,.25), transparent),
+        linear-gradient(135deg, var(--wa-green-mid), var(--wa-green-dark));
+      color:#fff; padding:48px 20px 24px; text-align:center;
+    }
+    .brand{
+      display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:12px;
+    }
+    .brand img{ width:64px; height:64px; border-radius:16px; object-fit:cover; box-shadow:var(--shadow); background:#fff }
+    .brand h1{ margin:0; font-size:28px; letter-spacing:.3px }
+    .tagline{opacity:.95; font-size:16px; margin:8px 0 0}
+
+    /* Contained page area */
+    .container{ width:min(1040px, 92vw); margin:-28px auto 40px; display:grid; gap:20px; grid-template-columns: 1.1fr .9fr; }
+    @media (max-width: 960px){ .container{ grid-template-columns:1fr; margin-top:-36px } }
+
+    .card{
+      background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:22px; border:1px solid var(--border);
+    }
+    .card h2{ margin:0 0 14px; font-size:20px; color:var(--wa-green-dark) }
+    .muted{ color:var(--muted) }
+
+    /* Connect card / form */
+    .connect-header{
+      display:flex; align-items:center; gap:12px; margin-bottom:6px;
+    }
+    .google-badge{
+      display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--border);
+      border-radius:10px; background:#fff
+    }
+    .google-dot{ width:10px; height:10px; border-radius:50% }
+    .g-r{ background:#ea4335 } .g-y{ background:#fbbc05 } .g-g{ background:#34a853 } .g-b{ background:#4285f4 }
+
+    form{ display:grid; gap:12px; margin-top:10px }
+    label{ font-size:14px; color:#1f2c34 }
+    input[type="tel"]{
+      width:100%; padding:12px 14px; font-size:16px; border:1px solid var(--border);
+      border-radius:10px; background:#fff;
+      outline: none; transition: border .2s, box-shadow .2s;
+    }
+    input[type="tel"]:focus{ border-color:var(--wa-green-mid); box-shadow:0 0 0 3px rgba(37,211,102,.18) }
+
+    .consent{
+      display:flex; align-items:flex-start; gap:10px; font-size:14px; color:#24313a; line-height:1.4
+    }
+    .consent input{ transform: translateY(2px) }
+
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      background:var(--wa-green); color:#fff; border:none; border-radius:12px; cursor:pointer;
+      padding:12px 16px; font-size:16px; font-weight:600; transition:.2s background, .2s transform;
+    }
+    .btn:hover{ background:#20ba5a }
+    .btn:active{ transform: translateY(1px) }
+    .btn.secondary{ background:#eef7f2; color:var(--wa-green-mid) }
+    .btn-row{ display:flex; gap:10px; flex-wrap:wrap }
+
+    .note{ font-size:13px; color:var(--muted) }
+
+    .trust{
+      display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-top:14px;
+    }
+    .trust .pill{
+      border:1px dashed var(--border); border-radius:999px; padding:8px 12px; text-align:center; font-size:13px; color:#1f2c34; background:#fafafa;
+    }
+    @media (max-width: 520px){ .trust{ grid-template-columns:1fr 1fr } }
+
+    /* Feature grid */
+    .features{
+      display:grid; grid-template-columns: repeat(3, 1fr); gap:14px;
+    }
+    @media (max-width: 960px){ .features{ grid-template-columns:1fr 1fr } }
+    @media (max-width: 600px){ .features{ grid-template-columns:1fr } }
+
+    .feature{
+      border:1px solid var(--border); border-radius:12px; padding:16px; background:#fff;
+    }
+    .feature h3{ margin:0 0 6px; font-size:16px }
+    .feature p{ margin:0; color:var(--muted); font-size:14px }
+
+    /* Steps */
+    .steps{ display:grid; gap:10px }
+    .step{
+      display:flex; gap:14px; background:#fff; border:1px solid var(--border);
+      border-radius:12px; padding:14px; align-items:flex-start;
+    }
+    .num{
+      width:30px; height:30px; border-radius:8px; background:var(--wa-green); color:#fff; display:inline-flex;
+      align-items:center; justify-content:center; font-weight:700;
+      box-shadow: 0 2px 10px rgba(37,211,102,.35)
+    }
+    /* FAQ accordion */
+    details{ border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:#fff }
+    details+details{ margin-top:10px }
+    summary{ cursor:pointer; font-weight:600; color:#1f2c34 }
+    details p{ margin:8px 0 0; color:var(--muted) }
+
+    /* Footer */
+    footer{
+      margin-top:auto; padding:22px; text-align:center; color:#456; font-size:13px; background:#eef7f2; border-top:1px solid #dfeee6
+    }
+    .footer-links{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap }
+    .footer-links a{ color:var(--wa-green-mid); text-decoration:none }
+    .footer-links a:hover{ text-decoration:underline }
+
+    /* Tiny helper badge */
+    .helper{
+      display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px; background:#fff; border:1px solid var(--border)
+    }
+    .helper .dot{ width:10px; height:10px; border-radius:50%; background:var(--success) }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="brand">
+      <img src="/static/logo.jpeg" alt="לוגו Tami AI Bot" loading="eager" />
+      <h1>Tami AI Bot</h1>
+    </div>
+    <p class="tagline">
+      עוזר ה-AI האישי המתקדם ביותר לוואטסאפ — הפעלה קולית, הודעות מתוזמנות, תזכורות וניהול משימות עם אינטגרציית Google מלאה.
+    </p>
+  </header>
+
+  <!-- MAIN -->
+  <main class="container" aria-label="תוכן ראשי">
+    <!-- Left: Connect -->
+    <section class="card" aria-labelledby="connect-title">
+      <div class="connect-header">
+        <h2 id="connect-title">חברו את חשבון Google שלכם</h2>
+        <span class="google-badge" aria-hidden="true" title="OAuth 2.0 מאובטח">
+          <span class="google-dot g-r"></span>
+          <span class="google-dot g-y"></span>
+          <span class="google-dot g-g"></span>
+          <span class="google-dot g-b"></span>
+          <strong>OAuth&nbsp;2.0</strong>
+        </span>
+      </div>
+      <p class="muted">
+        כדי לאפשר לתמי גישה לקריאה/יצירה של אירועים ותזכורות ביומן וכן גישה לאנשי קשר — יש להשלים התחברות מאובטחת באמצעות Google.
+      </p>
+
+      <form method="POST" action="/google/connect" id="connect-form" novalidate>
+        <label for="phone">מספר וואטסאפ (ללא +, לדוגמה 9725XXXXXXXX)</label>
+        <input id="phone" name="phone" type="tel" inputmode="numeric" required placeholder="9725XXXXXXXX" autocomplete="tel" />
+
+        <label class="consent">
+          <input type="checkbox" id="consent" required />
+          <span>אני מאשר/ת קישור בין חשבון Google לבין Tami AI Bot לצורך יצירה, קריאה ועדכון של נתוני יומן וקהילת אנשי קשר בהתאם להגדרות המפורטות במדיניות הפרטיות.</span>
+        </label>
+
+        <div class="btn-row">
+          <button class="btn" type="submit" id="submit-btn" aria-label="המשך עם Google">המשך עם Google</button>
+          <a class="btn secondary" href="#how" aria-label="איך זה עובד">איך זה עובד?</a>
+        </div>
+        <div class="note">לא נשמור את הסיסמה שלכם לעולם. תהליך ההרשאה מנוהל ישירות על-ידי Google.</div>
+      </form>
+
+      <div class="trust">
+        <div class="pill">הצפנת TLS מלאה</div>
+        <div class="pill">גישה ניתנת לביטול בכל עת</div>
+        <div class="pill">מינימום הרשאות נדרש</div>
+      </div>
+    </section>
+
+    <!-- Right: Features -->
+    <aside class="card" aria-labelledby="feat-title">
+      <h2 id="feat-title">למה לחבר את Google?</h2>
+      <div class="features">
+        <div class="feature">
+          <h3>הפעלה קולית טבעית</h3>
+          <p>דברו עם תמי — והיא תיצור אירועים, משימות ותזכורות בשפה חופשית.</p>
+        </div>
+        <div class="feature">
+          <h3>הודעות מתוזמנות</h3>
+          <p>שלחו הודעות חוזרות/עתידיות בוואטסאפ בלחיצה — יומן מסונכרן.</p>
+        </div>
+        <div class="feature">
+          <h3>ניהול משימות חכם</h3>
+          <p>תיעדוף אוטומטי, סטטוסים, והמרה לאירועים ביומן בזמן אמת.</p>
+        </div>
+        <div class="feature">
+          <h3>Google Calendar</h3>
+          <p>יצירה/עדכון/ביטול אירועים, תזכורות ו-RSVP — ישירות מהצ'אט.</p>
+        </div>
+        <div class="feature">
+          <h3>Google Contacts</h3>
+          <p>שליפה מהירה של אנשי קשר, יצירה והעשרה חכמה של פרטים.</p>
+        </div>
+        <div class="feature">
+          <h3>פרטיות ואבטחה</h3>
+          <p>OAuth 2.0, עקרון המינימום הנדרש, ולוגים אנונימיים בלבד.</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- How it works -->
+    <section id="how" class="card" aria-labelledby="how-title">
+      <h2 id="how-title">כך תהליך ההתחברות עובד</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <div>
+            <strong>הזינו מספר וואטסאפ ואשרו הרשאות</strong>
+            <p class="muted">אנחנו משתמשים במספר כדי לשייך את החשבון ב-Google לשיחה שלכם עם תמי.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div>
+            <strong>התחברו למסך ההרשאות של Google</strong>
+            <p class="muted">תועברו ל-Google Consent Screen. בחרו את החשבון ואשרו את ההרשאות המוצגות (Calendar/Contacts).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div>
+            <strong>חזרה אוטומטית ליישום</strong>
+            <p class="muted">לאחר האישור נחזור לעמוד זה עם קוד הרשאה מאובטח — ללא חשיפת הסיסמה שלכם.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <div>
+            <strong>הפעלת תמי</strong>
+            <p class="muted">מרגע זה תמי יכולה לנהל עבורכם יומן, אנשי קשר, תזכורות ומשימות — ישירות בוואטסאפ.</p>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px" class="helper">
+        <span class="dot" aria-hidden="true"></span>
+        <div>טיפ: אפשר לבטל הרשאות בכל רגע ב-<a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">הרשאות חשבון Google</a>.</div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="card" aria-labelledby="faq-title">
+      <h2 id="faq-title">שאלות נפוצות</h2>
+
+      <details>
+        <summary>אילו הרשאות בדיוק הבוט מבקש?</summary>
+        <p>גישה לקריאה/כתיבה של אירועים ב-Google Calendar וגישה לקריאה/עדכון של Google Contacts. לא מתבצעת גישה לדואר האלקטרוני או לקבצים בדרייב.</p>
+      </details>
+
+      <details>
+        <summary>איך מבטלים חיבור?</summary>
+        <p>ניתן לבטל דרך הגדרות תמי או דרך עמוד ההרשאות של Google בלחיצה על Remove Access. לאחר הביטול, תמי תפסיק לראות או לעדכן נתונים.</p>
+      </details>
+
+      <details>
+        <summary>האם המספר שלי נשמר?</summary>
+        <p>נשמר מזהה מוצפן לקישור בין חשבון ה-Google לשיחת הוואטסאפ בלבד. לא מעבירים מידע לצד שלישי.</p>
+      </details>
+
+      <details>
+        <summary>האם ניתן להתחבר עם יותר מחשבון Google אחד?</summary>
+        <p>כן. בעת ההתחברות נוכל לשייך חשבון נוסף לאותו מספר ולהחליף פרופיל עבודה/פרטי לפי צורך.</p>
+      </details>
+
+      <details>
+        <summary>אין לי גישה לחשבון Google בעסק — מה עושים?</summary>
+        <p>בקשו ממנהל ה-IT לאפשר הרשאות Calendar/Contacts או בצעו התחברות עם חשבון אחר בעל ההרשאות המתאימות.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/privacy" aria-label="מדיניות פרטיות">מדיניות פרטיות</a>
+      <a href="/terms" aria-label="תנאי שימוש">תנאי שימוש</a>
+      <a href="/security" aria-label="אבטחה">אבטחה</a>
+      <a href="mailto:support@tami.ai" aria-label="תמיכה">תמיכה</a>
+    </div>
+    <div style="margin-top:8px">©️ <span id="year"></span> Tami AI Bot — כל הזכויות שמורות.</div>
+  </footer>
+
+  <script>
+    // עזרי נגישות ושימושיות בסיסיים
+    const yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+    const form = document.getElementById('connect-form');
+    const phone = document.getElementById('phone');
+    const consent = document.getElementById('consent');
+    const btn = document.getElementById('submit-btn');
+
+    // מסכת קלט בסיסית ל-9725XXXXXXXX
+    phone.addEventListener('input', () => {
+      phone.value = phone.value.replace(/[^\d]/g,'').slice(0,12);
+    });
+
+    form.addEventListener('submit', (e) => {
+      const phoneOk = /^9725\d{8}$/.test(phone.value);
+      if (!phoneOk){
+        e.preventDefault();
+        alert('אנא הזינו מספר תקין בפורמט 9725XXXXXXXX (12 ספרות).');
+        phone.focus();
+        return;
+      }
+      if (!consent.checked){
+        e.preventDefault();
+        alert('יש לאשר את ההרשאות על מנת להמשיך.');
+        return;
+      }
+      // אפשר להוסיף פה telemetry לא אנונימי/אנליטיקות בהתאם למדיניות
+      btn.disabled = true;
+      btn.textContent = 'מפנה ל-Google...';
+    }, { passive:false });
+  </script>
+</body>
+</html>

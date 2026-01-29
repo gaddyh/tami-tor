@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Privacy Policy - Tami</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { counter-reset: section; }
+    h2::before {
+      counter-increment: section;
+      content: counter(section) ") ";
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+  <main class="flex-1 max-w-3xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">Privacy Policy</h1>
+    <p class="text-sm text-slate-400 mb-8">Last updated: August 18, 2025</p>
+
+    <h2 class="text-xl font-semibold mb-2">Who we are</h2>
+    <p class="mb-4">Controller: Tami Ltd, Sde Nehemia, Israel. Email: privacy@driftless.pro</p>
+
+    <h2 class="text-xl font-semibold mb-2">Data we collect</h2>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li>Account details: name, WhatsApp number, and basic contact info.</li>
+      <li>Usage data: timestamps, feature usage, technical logs.</li>
+      <li>Message content you explicitly send to Tami for assistance. Tami does not scan or use messages outside what you direct to it.</li>
+      <li>Google account data (if you connect your account): 
+        <ul class="list-disc pl-6 mt-1 space-y-1">
+          <li><strong>Calendar events</strong> — to create, update, and delete events at your request.</li>
+          <li><strong>Tasks</strong> — to create, edit, complete, or remove tasks you direct.</li>
+          <li><strong>Contacts</strong> — read-only, to resolve names into the correct email or contact details when you invite others.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2 class="text-xl font-semibold mb-2">How we use data</h2>
+    <ul class="list-disc pl-6 mb-4 space-y-1">
+      <li>Provide the service you ask for (e.g. reminders, scheduling, search).</li>
+      <li>If you connect your Google Account, Calendar, Tasks, and Contacts data are used strictly to fulfill your explicit requests.</li>
+      <li>Maintain reliability, troubleshoot issues, and prevent abuse.</li>
+      <li>Communicate important updates about the service.</li>
+    </ul>
+
+    <h2 class="text-xl font-semibold mb-2">Retention</h2>
+    <p class="mb-4">We keep data only as long as needed to deliver Tami and meet legal obligations. On cancellation or deletion request, we remove associated personal data, unless law requires longer retention. You may revoke Tami’s access to your Google Account at any time via your <a href="https://myaccount.google.com/permissions" target="_blank" class="text-indigo-400 hover:underline">Google Account permissions</a>.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Processors & transfers</h2>
+    <p class="mb-4">We use trusted providers for hosting, observability, and AI inference under contracts with safeguards. Some processing may occur outside your country, but we take steps to protect your data wherever it’s processed.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Security</h2>
+    <p class="mb-4">We apply technical and organizational measures such as encryption in transit, access controls, and monitoring. No method is 100% secure, but we continuously improve protection in line with industry standards.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Your rights</h2>
+    <p class="mb-4">Depending on your location, you may have rights to access, correct, delete, or restrict processing. To exercise these rights, email privacy@driftless.pro.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Children</h2>
+    <p class="mb-4">Tami is not designed for children. If you believe a child’s data was provided, contact us and we will remove it.</p>
+
+    <h2 class="text-xl font-semibold mb-2">Changes</h2>
+    <p class="mb-4">We may update this policy and revise the “Last updated” date. If material changes are made, we will provide additional notice.</p>
+
+  </main>
+
+  <footer class="border-t border-slate-700 py-6 text-center text-xs text-slate-400">
+    © <span id="year"></span> Tami. All rights reserved.
+  </footer>
+  <script>document.getElementById('year').textContent = new Date().getFullYear()</script>
+</body>
+</html>

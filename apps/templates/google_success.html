@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login Successful - Tami AI Bot</title>
+  <style>
+    :root {
+      --wa-green:#25D366;
+      --wa-green-dark:#075E54;
+      --bg:#f0f2f5;
+      --card:#ffffff;
+      --border:#e6e6e6;
+      --shadow:0 4px 10px rgba(0,0,0,0.08);
+      --radius:12px;
+    }
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      padding: 24px;
+      background-color: var(--bg);
+      text-align:center;
+      color:#0b141a;
+    }
+    .card {
+      background: var(--card);
+      max-width: 400px;
+      margin: 60px auto;
+      padding: 32px 24px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border:1px solid var(--border);
+    }
+    .logo {
+      max-width: 80px;
+      margin: 0 auto 16px;
+      display:block;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      color: var(--wa-green-dark);
+    }
+    p {
+      margin: 0 0 20px;
+      color:#444;
+      font-size:15px;
+    }
+    .success-icon {
+      width:60px; height:60px;
+      border-radius:50%;
+      background:var(--wa-green);
+      display:flex; align-items:center; justify-content:center;
+      margin:0 auto 16px;
+      color:#fff;
+      font-size:34px;
+    }
+    a.btn {
+      display:inline-block;
+      background:var(--wa-green);
+      color:#fff;
+      padding:12px 18px;
+      border-radius:8px;
+      font-size:16px;
+      text-decoration:none;
+      transition:background .2s;
+    }
+    a.btn:hover{ background:#20ba5a }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/static/logo.jpeg" alt="Tami AI Bot Logo" class="logo" />
+    <div class="success-icon">✓</div>
+    <h1>Login Successful</h1>
+    <p>Your Google account is now connected to <strong>Tami AI Bot</strong>.</p>
+    <a href="https://wa.me/972548321557" class="btn">Go to Tami AI Bot</a>
+  </div>
+</body>
+</html>
