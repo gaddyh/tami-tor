@@ -20,7 +20,7 @@ class GoogleToken(Base):
     # Store scopes as a single space-delimited string (what google-auth typically expects)
     scopes: Mapped[str] = mapped_column(Text, nullable=False)
 
-    expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=False), nullable=True)
 
 
 class GoogleAuthState(Base):
@@ -30,4 +30,4 @@ class GoogleAuthState(Base):
     state: Mapped[str] = mapped_column(String(512), primary_key=True)
 
     user_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False, default=datetime.now)
