@@ -87,6 +87,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     }
 
     result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage, ctx=ctx)
+    session.state_json = dump_session_state(result.flow, result.step, result.data)
     
     print("Reducer result:", result, flush=True)
 
