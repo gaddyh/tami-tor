@@ -178,7 +178,7 @@ def format_slots_for_llm(slots_by_day):
         formatted.append(day_data)
     
     return formatted
-def _get_available_slots(user_id: str, timezone: str, start_date: str = None, end_date: str = None, duration: int = 60):
+def get_available_slots(user_id: str, timezone: str, start_date: str = None, end_date: str = None, duration: int = 60):
     service = init_google_calendar(user_id)
     tz = pytz.timezone(timezone)
     
@@ -274,8 +274,107 @@ def divide_slots_into_chunks(availability_data, chunk_size=8):
     
     return chunks
 
+
+def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_phone: str, chunk_index: int = 0):
+    """
+    Create WhatsApp List Message format for availability slots with pagination.
+    
+    Args:
+        chunked_availability: ChunkedAvailability Pydantic model
+        chunk_index: Which chunk to display (0-based index)
+    
+    Returns:
+        Dictionary formatted for WhatsApp Cloud API List Message
+    """
+    if chunk_index >= chunked_availability.total_chunks:
+        return None
+    
+    chunk = chunked_availability.chunks[chunk_index]
+    slots:List[TimeSlot] = chunk.slots
+    
+    # Group slots by date
+    slots_by_date = {}
+    for slot in slots:
+        date = slot.date
+        if date not in slots_by_date:
+            slots_by_date[date] = {
+                'day_name': slot.day_name, 
+                'slots': []
+            }
+        slots_by_date[date]['slots'].append(slot)
+    
+    # Create sections for each day
+    sections = []
+    
+    # Add slots sections
+    for date in sorted(slots_by_date.keys()):
+        day_info = slots_by_date[date]
+        rows = []
+        
+        for i, slot in enumerate(day_info['slots']):
+            slot_id = f"slot_{chunk_index}_{date}_{i}"
+            slot:TimeSlot = slot
+            rows.append({
+                "id": slot_id,
+                "title": f"{slot.start_time} - {slot.end_time}"
+            })
+        
+        sections.append({
+            "title": f"{day_info['day_name']}, {date}",
+            "rows": rows
+        })
+    
+    # Add navigation section
+    navigation_rows = []
+    
+    # Go Back button
+    if chunk_index > 0:
+        navigation_rows.append({
+            "id": f"nav_back_{chunk_index}",
+            "title": "⬅️ תאריכים קודמים",
+            "description": f"לעמוד {chunk_index}"
+        })
+    else:
+        # Disabled "Go Back" for first chunk
+        navigation_rows.append({
+            "id": f"nav_back_disabled",
+            "title": "⬅️ תאריכים קודמים",
+            "description": "אין תאריכים קודמים"
+        })
+    
+    # More Dates button
+    if chunk_index < chunked_availability.total_chunks - 1:
+        navigation_rows.append({
+            "id": f"nav_next_{chunk_index}",
+            "title": "⬅️ תאריכים נוספים",
+            "description": f"לעמוד {chunk_index + 2}"
+        })
+    
+    sections.append({
+        "title": "Navigation",
+        "rows": navigation_rows
+    })
+    
+    # Create the full message
+    message = {
+            "type": "list",
+            "header": {
+                "type": "text",
+                "text": "📅 זמנים פנויים"
+            },
+            "body": {
+                "text": f"בחר את הזמן המועדף עליך\n\nמציג דף {chunk_index + 1} מתוך {chunked_availability.total_chunks}"
+            },
+            "action": {
+                "button": "צפה במנים פנויים",
+                "sections": sections
+            }
+    }
+    
+    return message
+
 if __name__ == "__main__":
-    availability_data = _get_available_slots("972546610656", "Asia/Jerusalem", "2026-01-15", "2026-01-20")
+    availability_data = get_available_slots("972546610655", "Asia/Jerusalem", "2026-01-15", "2026-01-20")
     chunks = divide_slots_into_chunks(availability_data, chunk_size=8)
 
 # Each chunk will have slots from potentially multiple days

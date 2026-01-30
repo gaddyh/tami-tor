@@ -5,12 +5,13 @@ from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
-from handlers.utility import load_or_create_session, load_business_by_wa_id, services_list_payload
+from handlers.utility import load_or_create_session, load_business_by_wa_id, now_israel, services_list_payload
 from runtime.session_state import parse_session_state, dump_session_state
 from reducers.client_reducer import reduce_session
-
+from adapters.google.availability import get_available_slots, divide_slots_into_chunks, create_whatsapp_list_message
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
-
+from datetime import timedelta
+from models.availability import ChunkedAvailability
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     """
     - load inbound message row via wi.ref_id
@@ -103,6 +104,24 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                 interactive_payload=payload,
                 workflow_id=str(session.session_id),
             )
+
+        if eff["kind"] == "SEND_SLOTS_LIST" and eff.get("to") == "client":
+            now = now_israel()
+            items = get_available_slots(
+                user_id=business.get_default_provider_id(),
+                timezone=business.timezone,
+                start_date=now.isoformat(),
+                end_date=(now + timedelta(days=10)).isoformat(),
+                duration=session.state_json["duration"],
+            )
+
+            chunked: ChunkedAvailability = divide_slots_into_chunks(items, chunk_size=5)
+            session.state_json["chunked"] = chunked
+            session.state_json["chunk_index"] = 0
+
+            payload = create_whatsapp_list_message(chunked, from_, 0)
+            result = await adapter.send_dynamic_list_message(to_phone=from_, interactive_payload=payload)
+            print(result)
 
     # If this is a brand new session, you can initialize it explicitly:
     

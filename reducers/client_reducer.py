@@ -89,6 +89,7 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
             # persist in session data
             d["service_id"] = selected_service_id
             d["service_name"] = getattr(service, "name", None)
+            d["duration"] = getattr(service, "duration", None)
 
             # next step: ask for slots (later you'll send slots list)
             effects.append({
@@ -97,7 +98,7 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
                 "text": f"מעולה ✅ {service.name}. עכשיו בחרי זמן פנוי.",
             })
             # or: effects.append({"kind": "SEND_SLOTS_LIST", ...})
-
+            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
             return ReduceResult(flow=flow, step=SessionStep.SLOTS_PICK, data=d, effects=effects)
 
         if step == SessionStep.SLOTS_PICK:
