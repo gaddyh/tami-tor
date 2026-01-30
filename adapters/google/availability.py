@@ -243,6 +243,16 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
     
     return format_slots_for_llm(slots_by_day)
 
+_HE_DAY_MAP = {
+    "Sunday": "יום ראשון",
+    "Monday": "יום שני",
+    "Tuesday": "יום שלישי",
+    "Wednesday": "יום רביעי",
+    "Thursday": "יום חמישי",
+    "Friday": "יום שישי",
+    "Saturday": "שבת",
+}
+
 def divide_chunked_into_slots(availability_data, chunk_size=8) -> ChunkedAvailability:
     """
     Divide availability slots into chunks of specified size across all days.
@@ -392,7 +402,5 @@ def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_p
 if __name__ == "__main__":
     availability_data = get_available_slots("972546610655", "Asia/Jerusalem", "2026-01-15", "2026-01-20")
     chunks = divide_chunked_into_slots(availability_data, chunk_size=8)
-
-# Each chunk will have slots from potentially multiple days
-    for chunk in chunks:
-        print(f"Chunk {chunk['chunk_number']}: {chunk['slots']} slots")
+    payload = create_whatsapp_list_message(chunks, "972546610655", 0)
+    print("Sending slots payload:", payload, flush=True)
