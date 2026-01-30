@@ -10,6 +10,7 @@ import logging
 import httpx
 logger = logging.getLogger(__name__)
 import os
+import uuid
 
 wa_token = os.environ["WHATSAPP_ACCESS_TOKEN"]
 
@@ -220,3 +221,68 @@ class CloudAPIAdapter():
             "error": resp.text,
             "request": payload,
         }
+
+    async def send_action_buttons(
+            self,
+            recipient: str,
+            message: str,
+            reply_to: str | None = None,
+        ) -> dict:
+            print("Sending buttons message to", recipient, "with message:", message)
+
+            action_id = f"act_{uuid.uuid4().hex[:8]}"
+
+            url = f"https://graph.facebook.com/v16.0/{self.phone_number_id}/messages"
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": recipient.replace("@c.us", ""),
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {
+                        "text": message
+                    },
+                    "action": {
+                        "buttons": [
+                            {
+                                "type": "reply",
+                                "reply": {
+                                    "id": f"{action_id}_confirm",
+                                    "title": "אשר"
+                                }
+                            },
+                            {
+                                "type": "reply",
+                                "reply": {
+                                    "id": f"{action_id}_new_time",
+                                    "title": "שנה זמן"
+                                }
+                            },
+                            {
+                                "type": "reply",
+                                "reply": {
+                                    "id": f"{action_id}_new_service",
+                                    "title": "שנה שירות"
+                                }
+                            },
+                        ]
+                    }
+                }
+            }
+
+            if reply_to:
+                payload["context"] = {"message_id": reply_to}
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers)
+
+            if response.status_code == 200:
+                return {"status": "sent", "response": response.json()}
+            else:
+                logger.error(f"Failed to send buttons: {response.status_code} - {response.text}")
+                return {"status": "failed", "error": response.text}

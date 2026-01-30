@@ -125,6 +125,7 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
                             "error_message": None,
                         }
                     )
+                    effects.append({"kind": "SEND_CONFIRM_BUTTONS", "to": "client", "rows":[]})
                     return ReduceResult(flow=flow, step=SessionStep.CONFIRM, data=data, effects=effects)
 
                 case DisabledActionResponse():

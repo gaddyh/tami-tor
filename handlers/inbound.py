@@ -12,9 +12,9 @@ from adapters.google.availability import get_available_slots, divide_chunked_int
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
 from models.availability import ChunkedAvailability
-
+from reducers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event_with_langfuse
-
+from models.availability import TimeSlot
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     if wi.kind != "INBOUND":
@@ -177,6 +177,14 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                     },
                 )
 
+            if kind == "SEND_CONFIRM_BUTTONS" and eff.get("to") == "client":
+                slot = session.state_json["data"]["slot"]
+                slot = TimeSlot.model_validate(slot)
+                payload = build_hebrew_slot_confirmation(slot)
+                await adapter.send_action_buttons(
+                    recipient=from_,
+                    message=payload,
+                )                
         emit_event_with_langfuse(
             event="INBOUND_HANDLER_DONE",
             meta={"work_id": str(wi.work_id), "session_id": str(session.session_id), "state": session.state_json},
