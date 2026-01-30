@@ -16,11 +16,44 @@ from runtime.events import emit_event
 from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 from handlers.utility import now_israel
+from observability.obs import span_attrs
+from observability.langfuse_client import langfuse
+from observability.telemetry import mark_error
 
 from apps.config import WORK_STALE_SECONDS  # reuse your knob as “stale seconds”
 
 LOCK_TTL_SECONDS = int(WORK_STALE_SECONDS)
 MAX_ATTEMPTS = 5
+
+
+def emit_event_with_langfuse(event: str, meta: dict | None = None) -> None:
+    """
+    Emit your existing event, and also log to Langfuse:
+      - an 'event' observation (keeps metadata)
+      - a numeric score (acts like a metric counter)
+    """
+    meta = meta or {}
+
+    # Your existing event sink
+    emit_event(event=event, meta=meta)
+
+    # Best-effort Langfuse (never break worker if LF is down/misconfigured)
+    try:
+        # 1) Event observation (discrete event in trace) :contentReference[oaicite:2]{index=2}
+        with langfuse.start_as_current_observation(as_type="event", name=event) as obs:
+            # metadata is the most useful place for your meta payload
+            obs.update(metadata=meta)
+
+        # 2) Counter-style metric via numeric score :contentReference[oaicite:3]{index=3}
+        # Score name convention: "worker.event.<EVENT_NAME>"
+        langfuse.score_current_trace(
+            name=f"worker.event.{event}",
+            value=1.0,
+            data_type="NUMERIC",
+        )
+    except Exception:
+        pass
+
 
 def _backoff_seconds(attempt: int) -> int:
     return min(2 ** max(0, attempt - 1), 30)
@@ -95,6 +128,7 @@ def schedule_retry(wi: WorkItem, *, error: str) -> datetime:
     wi.updated_at = now_israel()
     return run_after
 
+
 import asyncio
 import inspect
 from typing import Any, Callable
@@ -118,10 +152,12 @@ def main() -> None:
         if not work_id:
             continue
 
-        emit_event(event="WORK_DEQUEUED", meta={"work_id": work_id, "where": "worker"})
+        emit_event_with_langfuse(event="WORK_DEQUEUED", meta={"work_id": work_id, "where": "worker"})
 
         wi: Optional[WorkItem] = None
         lock_token: Optional[str] = None
+        business_id: Optional[str] = None
+        client_id: Optional[str] = None
 
         try:
             with SessionLocal() as db:
@@ -131,61 +167,74 @@ def main() -> None:
 
                 business_id = wi.business_id
                 client_id = wi.client_id
-                emit_event(
-                    event="WORK_CLAIMED",
-                    meta={
-                        "work_id": str(wi.work_id),
-                        "kind": wi.kind,
-                        "attempt": int(wi.attempts),
-                        "business_id": wi.business_id or "",
-                        "client_id": wi.client_id or "",
-                    },
-                )
 
-                # Lock only if we have business/client context
-                if wi.business_id and wi.client_id:
-                    acquired, lock_token = acquire_lock(wi.business_id, wi.client_id)
-                    if not acquired:
-                        run_after = now_israel() + timedelta(seconds=1)
-                        wi.status = "pending"
-                        wi.run_after = run_after
-                        wi.updated_at = now_israel()
-                        db.commit()
-
-                        emit_event(
-                            event="LOCK_MISSED",
-                            meta={
-                                "work_id": str(wi.work_id),
-                                "business_id": wi.business_id,
-                                "client_id": wi.client_id,
-                                "run_after": run_after.isoformat(),
-                            },
-                        )
-                        enqueue_work(str(wi.work_id))
-                        continue
-
-                    emit_event(
-                        event="LOCK_ACQUIRED",
-                        meta={"work_id": str(wi.work_id), "business_id": wi.business_id, "client_id": wi.client_id},
+                with span_attrs(
+                    "wa.job",
+                    as_type="span",
+                    user_id=wi.client_id,
+                    business_id=wi.business_id,
+                    work_id=wi.work_id,
+                    kind=wi.kind,
+                    attempt=wi.attempts,
+                ):
+                    emit_event_with_langfuse(
+                        event="WORK_CLAIMED",
+                        meta={
+                            "work_id": str(wi.work_id),
+                            "kind": wi.kind,
+                            "attempt": int(wi.attempts),
+                            "business_id": wi.business_id or "",
+                            "client_id": wi.client_id or "",
+                        },
                     )
 
-                handler = WORK_HANDLERS.get(wi.kind)
-                if not handler:
-                    mark_failed(wi, error=f"unknown work kind: {wi.kind}")
+                    # Lock only if we have business/client context
+                    if wi.business_id and wi.client_id:
+                        acquired, lock_token = acquire_lock(wi.business_id, wi.client_id)
+                        if not acquired:
+                            run_after = now_israel() + timedelta(seconds=1)
+                            wi.status = "pending"
+                            wi.run_after = run_after
+                            wi.updated_at = now_israel()
+                            db.commit()
+
+                            emit_event_with_langfuse(
+                                event="LOCK_MISSED",
+                                meta={
+                                    "work_id": str(wi.work_id),
+                                    "business_id": wi.business_id,
+                                    "client_id": wi.client_id,
+                                    "run_after": run_after.isoformat(),
+                                },
+                            )
+                            enqueue_work(str(wi.work_id))
+                            continue
+
+                        emit_event_with_langfuse(
+                            event="LOCK_ACQUIRED",
+                            meta={"work_id": str(wi.work_id), "business_id": wi.business_id, "client_id": wi.client_id},
+                        )
+
+                    handler = WORK_HANDLERS.get(wi.kind)
+                    if not handler:
+                        mark_failed(wi, error=f"unknown work kind: {wi.kind}")
+                        db.commit()
+                        emit_event_with_langfuse(event="WORK_UNKNOWN_KIND", meta={"work_id": str(wi.work_id), "kind": wi.kind})
+                        continue
+
+                    call_handler(handler, db, wi)
+
+                    mark_done(wi)
                     db.commit()
-                    emit_event(event="WORK_UNKNOWN_KIND", meta={"work_id": str(wi.work_id), "kind": wi.kind})
-                    continue
 
-                call_handler(handler, db, wi)
-
-                mark_done(wi)
-                db.commit()
-
-                emit_event(event="WORK_DONE", meta={"work_id": str(wi.work_id), "kind": wi.kind, "attempt": int(wi.attempts)})
+                    emit_event_with_langfuse(
+                        event="WORK_DONE",
+                        meta={"work_id": str(wi.work_id), "kind": wi.kind, "attempt": int(wi.attempts)},
+                    )
 
         except NonRetryableError as e:
             err = str(e)
-            emit_event(event="WORK_FAILED", meta={"work_id": work_id, "error": err, "kind": "non_retryable"})
+            emit_event_with_langfuse(event="WORK_FAILED", meta={"work_id": work_id, "error": err, "kind": "non_retryable"})
             with SessionLocal() as db:
                 o = db.get(WorkItem, work_id)
                 if o and o.status == "processing":
@@ -194,7 +243,7 @@ def main() -> None:
 
         except Exception as e:
             err = str(e)
-            emit_event(event="WORK_ERROR", meta={"work_id": work_id, "error": err})
+            emit_event_with_langfuse(event="WORK_ERROR", meta={"work_id": work_id, "error": err})
 
             with SessionLocal() as db:
                 o = db.get(WorkItem, work_id)
@@ -203,17 +252,20 @@ def main() -> None:
                 elif int(o.attempts) >= MAX_ATTEMPTS:
                     mark_failed(o, error=err)
                     db.commit()
-                    emit_event(event="WORK_DLQ", meta={"work_id": work_id, "attempt": int(o.attempts), "error": err})
+                    emit_event_with_langfuse(event="WORK_DLQ", meta={"work_id": work_id, "attempt": int(o.attempts), "error": err})
                 else:
                     run_after = schedule_retry(o, error=err)
                     db.commit()
                     enqueue_work(str(o.work_id))
-                    emit_event(event="WORK_RETRY_SCHEDULED", meta={"work_id": work_id, "run_after": run_after.isoformat(), "attempt": int(o.attempts)})
+                    emit_event_with_langfuse(
+                        event="WORK_RETRY_SCHEDULED",
+                        meta={"work_id": work_id, "run_after": run_after.isoformat(), "attempt": int(o.attempts)},
+                    )
 
             time.sleep(0.2)
 
         finally:
-            if wi and lock_token and business_id and client_id:
+            if lock_token and business_id and client_id:
                 release_lock(business_id, client_id, lock_token)
 
 
