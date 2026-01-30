@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 from langfuse import propagate_attributes
 from observability.langfuse_client import langfuse
 
-from models.input import In  # your Pydantic model
+from models.input import In
 Json = Dict[str, Any]
 
 
