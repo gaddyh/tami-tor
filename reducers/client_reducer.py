@@ -120,7 +120,7 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
                     slot: TimeSlot = res.slot
                     data.update(
                         {
-                            "slot": slot,
+                            "slot": slot.model_dump(),
                             "client_step": SessionStep.CONFIRM,
                             "error_message": None,
                         }
