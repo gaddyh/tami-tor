@@ -158,7 +158,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                     duration=session.state_json["data"]["duration"],
                 )
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
-                session.state_json["data"]["chunked"] = chunked
+                session.state_json["data"]["chunked"] = chunked.model_dump()
                 session.state_json["data"]["chunk_index"] = 0
 
                 payload = create_whatsapp_list_message(chunked, from_, 0)
