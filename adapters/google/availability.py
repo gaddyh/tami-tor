@@ -243,7 +243,7 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
     
     return format_slots_for_llm(slots_by_day)
 
-def divide_slots_into_chunks(availability_data, chunk_size=8):
+def divide_chunked_into_slots(availability_data, chunk_size=8) -> ChunkedAvailability:
     """
     Divide availability slots into chunks of specified size across all days.
     
@@ -252,29 +252,43 @@ def divide_slots_into_chunks(availability_data, chunk_size=8):
         chunk_size: Number of slots per chunk (default: 8)
     
     Returns:
-        List of chunks, each containing slots from one or more days
+        ChunkedAvailability object with all chunks
     """
     # Flatten all slots from all days into a single list
     all_slots = []
     for day in availability_data:
-        for slot in day.get('slots', []):
-            # Add day information to each slot
+        day_date = day.get("date")
+        day_name_en = day.get("day_name")  # expected English name
+
+        # Always resolve to Hebrew, always fallback to empty string (never None)
+        day_name_he = _HE_DAY_MAP.get(day_name_en, "")
+
+        for slot in day.get("slots", []):
             slot_with_day = slot.copy()
-            slot_with_day['date'] = day['date']
-            slot_with_day['day_name'] = day['day_name']
+            slot_with_day["date"] = day_date
+            slot_with_day["day_name"] = day_name_he  # ← ALWAYS STRING
             all_slots.append(slot_with_day)
+
     
     # Divide into chunks of 8
     chunks = []
     for i in range(0, len(all_slots), chunk_size):
-        chunk = all_slots[i:i + chunk_size]
-        chunks.append({
-            'chunk_number': len(chunks) + 1,
-            'total_slots': len(chunk),
-            'slots': chunk
-        })
+        chunk_slots = all_slots[i:i + chunk_size]
+        
+        # Create TimeSlot objects
+        time_slots = [TimeSlot(**slot) for slot in chunk_slots]
+        
+        chunks.append(SlotChunk(
+            chunk_number=len(chunks) + 1,
+            total_slots=len(chunk_slots),
+            slots=time_slots
+        ))
     
-    return chunks
+    return ChunkedAvailability(
+        total_chunks=len(chunks),
+        total_slots=len(all_slots),
+        chunks=chunks
+    )
 
 
 def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_phone: str, chunk_index: int = 0):
@@ -377,7 +391,7 @@ def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_p
 
 if __name__ == "__main__":
     availability_data = get_available_slots("972546610655", "Asia/Jerusalem", "2026-01-15", "2026-01-20")
-    chunks = divide_slots_into_chunks(availability_data, chunk_size=8)
+    chunks = divide_chunked_into_slots(availability_data, chunk_size=8)
 
 # Each chunk will have slots from potentially multiple days
     for chunk in chunks:

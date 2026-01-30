@@ -8,7 +8,7 @@ from adapters.cloud_api import CloudAPIAdapter
 from handlers.utility import load_or_create_session, load_business_by_wa_id, now_israel, services_list_payload
 from runtime.session_state import parse_session_state, dump_session_state
 from reducers.client_reducer import reduce_session
-from adapters.google.availability import get_available_slots, divide_slots_into_chunks, create_whatsapp_list_message
+from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
 from models.availability import ChunkedAvailability
@@ -119,7 +119,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                     duration=session.state_json["data"]["duration"],
                 )
                 print("Available slots:", items, flush=True)
-                chunked: ChunkedAvailability = divide_slots_into_chunks(items, chunk_size=5)
+                chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
                 session.state_json["data"]["chunked"] = chunked
                 session.state_json["data"]["chunk_index"] = 0
 
