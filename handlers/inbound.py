@@ -91,7 +91,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     session.state_json = dump_session_state(result.flow, result.step, result.data)
     
     print("Reducer result:", result, flush=True)
-
+    print("state json:", session.state_json, flush=True)
     try:
 
         for eff in result.effects:
