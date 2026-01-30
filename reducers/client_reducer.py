@@ -3,6 +3,7 @@ from handlers.utility import build_service_rows, get_list_reply_id
 from models.session_state import SessionFlow, SessionStep
 from adapters.primitivies import RawMessage
 from typing import Any, Literal, TypedDict, Union
+from reducers.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
 
 class ListRow(TypedDict):
     id: str          # payload you get back in list_reply.id
@@ -102,8 +103,37 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
             return ReduceResult(flow=flow, step=SessionStep.SLOTS_PICK, data=d, effects=effects)
 
         if step == SessionStep.SLOTS_PICK:
-            effects.append({"kind": "SEND_TEXT", "to": "client", "text": "Confirm? (yes/no)"})
-            return ReduceResult(flow=flow, step=SessionStep.CONFIRM, data=d, effects=effects)
+            list_id = get_list_reply_id(msg)
+            res: ListResponse = handle_list_response(list_id, data["chunked"])
+            match res:
+                case NavigationResponse():
+                    data.update(
+                        {
+                            "chunk_index": res.chunk_index,
+                            "client_step": step,
+                            "error_message": None,
+                        }
+                    )
+                    return ReduceResult(flow=flow, step=step, data=data, effects=effects)
+
+                case SlotSelectionResponse():
+                    slot: TimeSlot = res.slot
+                    data.update(
+                        {
+                            "slot": slot,
+                            "client_step": SessionStep.CONFIRM,
+                            "error_message": None,
+                        }
+                    )
+                    return ReduceResult(flow=flow, step=SessionStep.CONFIRM, data=data, effects=effects)
+
+                case DisabledActionResponse():
+                    data.update({"client_step": step, "error_message": res.message})
+                    return ReduceResult(flow=flow, step=step, data=data, effects=effects)
+
+                case UnknownActionResponse():
+                    data.update({"client_step": step, "error_message": res.message})
+                    return ReduceResult(flow=flow, step=step, data=data, effects=effects)
 
         if step == SessionStep.CONFIRM:
             # On confirm: finish client flow + trigger owner flow
