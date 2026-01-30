@@ -116,12 +116,12 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                     timezone=business.timezone,
                     start_date=now.isoformat(),
                     end_date=(now + timedelta(days=2)).isoformat(),
-                    duration=session.state_json["duration"],
+                    duration=session.state_json["data"]["duration"],
                 )
                 print("Available slots:", items, flush=True)
                 chunked: ChunkedAvailability = divide_slots_into_chunks(items, chunk_size=5)
-                session.state_json["chunked"] = chunked
-                session.state_json["chunk_index"] = 0
+                session.state_json["data"]["chunked"] = chunked
+                session.state_json["data"]["chunk_index"] = 0
 
                 payload = create_whatsapp_list_message(chunked, from_, 0)
                 print("Sending slots payload:", payload, flush=True)
