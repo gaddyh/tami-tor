@@ -13,7 +13,7 @@ from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
 from models.availability import ChunkedAvailability
 
-from runtime.events import emit_event_with_langfuse  # or wherever you placed it
+from runtime.events import emit_event_with_langfuse
 
 
 async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
