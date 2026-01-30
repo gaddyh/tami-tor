@@ -129,6 +129,8 @@ def main() -> None:
                 if not wi:
                     continue
 
+                business_id = wi.business_id
+                client_id = wi.client_id
                 emit_event(
                     event="WORK_CLAIMED",
                     meta={
@@ -211,8 +213,8 @@ def main() -> None:
             time.sleep(0.2)
 
         finally:
-            if wi and lock_token and wi.business_id and wi.client_id:
-                release_lock(wi.business_id, wi.client_id, lock_token)
+            if wi and lock_token and business_id and client_id:
+                release_lock(business_id, client_id, lock_token)
 
 
 if __name__ == "__main__":
