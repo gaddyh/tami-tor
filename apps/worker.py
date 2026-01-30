@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session as OrmSession
 from db.session import SessionLocal
 from models.work_item import WorkItem
 from runtime.redis_client import dequeue_work, enqueue_work, redis_client
-from runtime.events import emit_event_with_langfuse
+from runtime.events import emit_event
 from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 from handlers.utility import now_israel
@@ -45,11 +45,13 @@ def acquire_lock(business_id: str, client_id: str) -> tuple[bool, str]:
     ok = redis_client.set(_lock_key(business_id, client_id), token, nx=True, ex=LOCK_TTL_SECONDS)
     return bool(ok), token
 
+
 def release_lock(business_id: str, client_id: str, token: str) -> None:
     try:
         redis_client.eval(_RELEASE_LOCK_LUA, 1, _lock_key(business_id, client_id), token)
     except Exception:
         pass
+
 
 def claim_work(db: OrmSession, work_id: str) -> Optional[WorkItem]:
     stmt = text("""
@@ -99,6 +101,7 @@ import asyncio
 import inspect
 from typing import Any, Callable
 
+
 def call_handler(handler: Callable[..., Any], db, wi) -> None:
     """
     Allow handlers to be sync or async.
@@ -118,7 +121,12 @@ def main() -> None:
         if not work_id:
             continue
 
-        emit_event_with_langfuse(event="WORK_DEQUEUED", meta={"work_id": work_id, "where": "worker"})
+        emit_event(
+            event="WORK_DEQUEUED",
+            inbound_id=str(work_id),
+            type="WORKER",
+            meta={"work_id": str(work_id), "where": "worker"},
+        )
 
         wi: Optional[WorkItem] = None
         lock_token: Optional[str] = None
@@ -143,14 +151,16 @@ def main() -> None:
                     kind=wi.kind,
                     attempt=wi.attempts,
                 ):
-                    emit_event_with_langfuse(
+                    emit_event(
                         event="WORK_CLAIMED",
+                        inbound_id=str(wi.work_id),
+                        type=wi.kind,
+                        business_id=wi.business_id,
+                        client_id=wi.client_id,
+                        attempt=int(wi.attempts),
                         meta={
                             "work_id": str(wi.work_id),
                             "kind": wi.kind,
-                            "attempt": int(wi.attempts),
-                            "business_id": wi.business_id or "",
-                            "client_id": wi.client_id or "",
                         },
                     )
 
@@ -164,28 +174,44 @@ def main() -> None:
                             wi.updated_at = now_israel()
                             db.commit()
 
-                            emit_event_with_langfuse(
+                            emit_event(
                                 event="LOCK_MISSED",
+                                inbound_id=str(wi.work_id),
+                                type=wi.kind,
+                                business_id=wi.business_id,
+                                client_id=wi.client_id,
+                                attempt=int(wi.attempts),
                                 meta={
                                     "work_id": str(wi.work_id),
-                                    "business_id": wi.business_id,
-                                    "client_id": wi.client_id,
                                     "run_after": run_after.isoformat(),
                                 },
                             )
                             enqueue_work(str(wi.work_id))
                             continue
 
-                        emit_event_with_langfuse(
+                        emit_event(
                             event="LOCK_ACQUIRED",
-                            meta={"work_id": str(wi.work_id), "business_id": wi.business_id, "client_id": wi.client_id},
+                            inbound_id=str(wi.work_id),
+                            type=wi.kind,
+                            business_id=wi.business_id,
+                            client_id=wi.client_id,
+                            attempt=int(wi.attempts),
+                            meta={"work_id": str(wi.work_id)},
                         )
 
                     handler = WORK_HANDLERS.get(wi.kind)
                     if not handler:
                         mark_failed(wi, error=f"unknown work kind: {wi.kind}")
                         db.commit()
-                        emit_event_with_langfuse(event="WORK_UNKNOWN_KIND", meta={"work_id": str(wi.work_id), "kind": wi.kind})
+                        emit_event(
+                            event="WORK_UNKNOWN_KIND",
+                            inbound_id=str(wi.work_id),
+                            type=wi.kind,
+                            business_id=wi.business_id,
+                            client_id=wi.client_id,
+                            attempt=int(wi.attempts),
+                            meta={"work_id": str(wi.work_id), "kind": wi.kind},
+                        )
                         continue
 
                     call_handler(handler, db, wi)
@@ -193,14 +219,24 @@ def main() -> None:
                     mark_done(wi)
                     db.commit()
 
-                    emit_event_with_langfuse(
+                    emit_event(
                         event="WORK_DONE",
-                        meta={"work_id": str(wi.work_id), "kind": wi.kind, "attempt": int(wi.attempts)},
+                        inbound_id=str(wi.work_id),
+                        type=wi.kind,
+                        business_id=wi.business_id,
+                        client_id=wi.client_id,
+                        attempt=int(wi.attempts),
+                        meta={"work_id": str(wi.work_id), "kind": wi.kind},
                     )
 
         except NonRetryableError as e:
             err = str(e)
-            emit_event_with_langfuse(event="WORK_FAILED", meta={"work_id": work_id, "error": err, "kind": "non_retryable"})
+            emit_event(
+                event="WORK_FAILED",
+                inbound_id=str(work_id),
+                type="WORKER",
+                meta={"work_id": str(work_id), "error": err, "kind": "non_retryable"},
+            )
             with SessionLocal() as db:
                 o = db.get(WorkItem, work_id)
                 if o and o.status == "processing":
@@ -209,7 +245,12 @@ def main() -> None:
 
         except Exception as e:
             err = str(e)
-            emit_event_with_langfuse(event="WORK_ERROR", meta={"work_id": work_id, "error": err})
+            emit_event(
+                event="WORK_ERROR",
+                inbound_id=str(work_id),
+                type="WORKER",
+                meta={"work_id": str(work_id), "error": err},
+            )
 
             with SessionLocal() as db:
                 o = db.get(WorkItem, work_id)
@@ -218,14 +259,30 @@ def main() -> None:
                 elif int(o.attempts) >= MAX_ATTEMPTS:
                     mark_failed(o, error=err)
                     db.commit()
-                    emit_event_with_langfuse(event="WORK_DLQ", meta={"work_id": work_id, "attempt": int(o.attempts), "error": err})
+                    emit_event(
+                        event="WORK_DLQ",
+                        inbound_id=str(work_id),
+                        type=o.kind if getattr(o, "kind", None) else "WORKER",
+                        business_id=o.business_id,
+                        client_id=o.client_id,
+                        attempt=int(o.attempts),
+                        meta={"work_id": str(work_id), "error": err},
+                    )
                 else:
                     run_after = schedule_retry(o, error=err)
                     db.commit()
                     enqueue_work(str(o.work_id))
-                    emit_event_with_langfuse(
+                    emit_event(
                         event="WORK_RETRY_SCHEDULED",
-                        meta={"work_id": work_id, "run_after": run_after.isoformat(), "attempt": int(o.attempts)},
+                        inbound_id=str(work_id),
+                        type=o.kind if getattr(o, "kind", None) else "WORKER",
+                        business_id=o.business_id,
+                        client_id=o.client_id,
+                        attempt=int(o.attempts),
+                        meta={
+                            "work_id": str(work_id),
+                            "run_after": run_after.isoformat(),
+                        },
                     )
 
             time.sleep(0.2)

@@ -13,7 +13,7 @@ from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
 from models.availability import ChunkedAvailability
 from reducers.helper import build_hebrew_slot_confirmation
-from runtime.events import emit_event_with_langfuse
+from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
 
@@ -33,13 +33,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     if wi.kind != "INBOUND":
         raise NonRetryableError(f"handle_process_inbound got wrong kind: {wi.kind}")
 
-    emit_event_with_langfuse(
+    emit_event(
         event="INBOUND_HANDLER_START",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
         meta={
             "work_id": str(wi.work_id),
             "ref_id": str(wi.ref_id),
-            "business_id": wi.business_id or "",
-            "client_id": wi.client_id or "",
         },
     )
 
@@ -52,8 +54,12 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     from_ = inbound.from_
     message_id = inbound.message_id
 
-    emit_event_with_langfuse(
+    emit_event(
         event="INBOUND_ROW_LOADED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
         meta={
             "work_id": str(wi.work_id),
             "message_id": message_id,
@@ -65,8 +71,12 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     adapter = CloudAPIAdapter(phone_number_id)
     rawMessage: RawMessage = await adapter.parse_incoming(raw)
 
-    emit_event_with_langfuse(
+    emit_event(
         event="INBOUND_PARSED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
         meta={
             "work_id": str(wi.work_id),
             "message_id": message_id,
@@ -80,13 +90,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         client_id=wi.client_id,
     )
 
-    emit_event_with_langfuse(
+    emit_event(
         event="INBOUND_SESSION_LOADED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=session.business_id,
+        client_id=session.client_id,
+        session_id=str(session.session_id),
         meta={
             "work_id": str(wi.work_id),
-            "session_id": str(session.session_id),
-            "business_id": session.business_id,
-            "client_id": session.client_id,
             "state": session.state_json,
         },
     )
@@ -95,9 +107,17 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
     if not isinstance(session.state_json, dict) or not session.state_json:
         session.state_json = dump_session_state(flow, step, data)
-        emit_event_with_langfuse(
+        emit_event(
             event="INBOUND_SESSION_STATE_BOOTSTRAPPED",
-            meta={"work_id": str(wi.work_id), "session_id": str(session.session_id),"state": session.state_json}
+            inbound_id=str(wi.ref_id),
+            type="INBOUND",
+            business_id=session.business_id,
+            client_id=session.client_id,
+            session_id=str(session.session_id),
+            meta={
+                "work_id": str(wi.work_id),
+                "state": session.state_json,
+            },
         )
 
     business = load_business_by_wa_id(db, inbound.phone_number_id)
@@ -113,11 +133,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage, ctx=ctx)
     session.state_json = dump_session_state(result.flow, result.step, result.data)
 
-    emit_event_with_langfuse(
+    emit_event(
         event="INBOUND_REDUCED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=session.business_id,
+        client_id=session.client_id,
+        session_id=str(session.session_id),
         meta={
             "work_id": str(wi.work_id),
-            "session_id": str(session.session_id),
             "flow": result.flow.value,
             "step": result.step.value,
             "effects_count": len(result.effects or []),
@@ -129,11 +153,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         for eff in result.effects or []:
             kind = eff.get("kind", "UNKNOWN_EFFECT")
 
-            emit_event_with_langfuse(
+            emit_event(
                 event="INBOUND_EFFECT_EMITTED",
+                inbound_id=str(wi.ref_id),
+                type="INBOUND",
+                business_id=session.business_id,
+                client_id=session.client_id,
+                session_id=str(session.session_id),
                 meta={
                     "work_id": str(wi.work_id),
-                    "session_id": str(session.session_id),
                     "effect_kind": kind,
                     "to": eff.get("to", ""),
                 },
@@ -151,11 +179,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     workflow_id=str(session.session_id),
                 )
 
-                emit_event_with_langfuse(
+                emit_event(
                     event="INBOUND_SERVICE_LIST_ENQUEUED",
+                    inbound_id=str(wi.ref_id),
+                    type="INBOUND",
+                    business_id=session.business_id,
+                    client_id=session.client_id,
+                    session_id=str(session.session_id),
                     meta={
                         "work_id": str(wi.work_id),
-                        "session_id": str(session.session_id),
                         "rows": len(eff.get("rows") or []),
                         "to_chat_id": from_,
                     },
@@ -177,11 +209,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 payload = create_whatsapp_list_message(chunked, from_, 0)
                 send_result = await adapter.send_dynamic_list_message(to_phone=from_, interactive_payload=payload)
 
-                emit_event_with_langfuse(
+                emit_event(
                     event="INBOUND_SLOTS_LIST_SENT",
+                    inbound_id=str(wi.ref_id),
+                    type="INBOUND",
+                    business_id=session.business_id,
+                    client_id=session.client_id,
+                    session_id=str(session.session_id),
                     meta={
                         "work_id": str(wi.work_id),
-                        "session_id": str(session.session_id),
                         "to_phone": from_,
                         "slots_total": len(items or []),
                         # keep it light; don’t dump full API responses into metadata
@@ -199,26 +235,43 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     message=payload,
                 )
 
-                emit_event_with_langfuse(
+                emit_event(
                     event="INBOUND_CONFIRM_BUTTONS_SENT",
+                    inbound_id=str(wi.ref_id),
+                    type="INBOUND",
+                    business_id=session.business_id,
+                    client_id=session.client_id,
+                    session_id=str(session.session_id),
                     meta={
                         "work_id": str(wi.work_id),
-                        "session_id": str(session.session_id),
                         "to_phone": from_,
                         "state": session.state_json,
                     },
                 )
 
-        emit_event_with_langfuse(
+        emit_event(
             event="INBOUND_HANDLER_DONE",
-            meta={"work_id": str(wi.work_id), "session_id": str(session.session_id), "state": session.state_json},
+            inbound_id=str(wi.ref_id),
+            type="INBOUND",
+            business_id=session.business_id,
+            client_id=session.client_id,
+            session_id=str(session.session_id),
+            meta={
+                "work_id": str(wi.work_id),
+                "state": session.state_json,
+            },
         )
 
-        return session.state_json #for observability
+        return session.state_json  # for observability
 
     except Exception as e:
-        emit_event_with_langfuse(
+        emit_event(
             event="INBOUND_HANDLER_ERROR",
+            inbound_id=str(wi.ref_id),
+            type="INBOUND",
+            business_id=session.business_id,
+            client_id=session.client_id,
+            session_id=str(session.session_id),
             meta={
                 "work_id": str(wi.work_id),
                 "ref_id": str(wi.ref_id),
