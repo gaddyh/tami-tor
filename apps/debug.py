@@ -22,6 +22,7 @@ def _compact_json(x, limit: int = 280) -> str:
         s = json.dumps(x, ensure_ascii=False)
     except Exception:
         s = str(x)
+    limit = 800
     if len(s) > limit:
         return s[:limit] + "…"
     return s
