@@ -7,23 +7,7 @@ from functools import wraps
 from contextlib import contextmanager
 from typing import Any, Callable, ParamSpec, TypeVar, Optional, Mapping
 from observability.langfuse_client import langfuse
-
-def _agent_meta(inp: In, target_agent: Optional[TargetAgent] = None, **_):
-    return {
-        "agent": getattr(target_agent, "value", str(target_agent or "unknown")),
-        "operation": "route",
-    }
-
-def _agent_input(inp: In, target_agent: Optional[TargetAgent] = None, **_):
-    return {
-        "user_id": inp.user_id,
-        "thread_id": inp.thread_id,
-        "text": inp.text or "",
-        "reply_parent_id": getattr(getattr(inp, "reply", None), "parent_message_id", None),
-    }
-
-def _agent_output(out: AgentResult):
-    return out  # will be safely dumped
+from models.input import In
 
 def _dump(obj: Any) -> Any:
     try:
