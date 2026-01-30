@@ -15,8 +15,21 @@ from models.availability import ChunkedAvailability
 from reducers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event_with_langfuse
 from models.availability import TimeSlot
+from observability.obs import instrument_io
 
-async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
+@instrument_io(
+    name="handle_process_inbound",
+    meta={"operation": "handle_process_inbound"},
+    input_fn=lambda db, wi:WorkItem: {
+        "work_id": str(wi.work_id),
+        "ref_id": str(wi.ref_id),
+        "business_id": wi.business_id or "",
+        "client_id": wi.client_id or "",
+    },
+    output_fn=lambda result: result,
+    redact=True,
+)
+async def handle_process_inbound(db: Session, wi: WorkItem) -> dict:
     if wi.kind != "INBOUND":
         raise NonRetryableError(f"handle_process_inbound got wrong kind: {wi.kind}")
 
@@ -200,6 +213,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
             event="INBOUND_HANDLER_DONE",
             meta={"work_id": str(wi.work_id), "session_id": str(session.session_id), "state": session.state_json},
         )
+
+        return session.state_json
 
     except Exception as e:
         emit_event_with_langfuse(
