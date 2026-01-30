@@ -94,6 +94,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
 
     for eff in result.effects:
         if eff["kind"] == "SEND_SERVICE_LIST" and eff.get("to") == "client":
+            print("Sending service list", flush=True)
             payload = services_list_payload(eff["rows"])
 
             persist_scheduled_message_and_enqueue(
@@ -106,6 +107,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
             )
 
         if eff["kind"] == "SEND_SLOTS_LIST" and eff.get("to") == "client":
+            print("Sending slots list", flush=True)
             now = now_israel()
             items = get_available_slots(
                 user_id=business.get_default_provider_id(),
@@ -114,14 +116,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                 end_date=(now + timedelta(days=10)).isoformat(),
                 duration=session.state_json["duration"],
             )
-
+            print("Available slots:", items, flush=True)
             chunked: ChunkedAvailability = divide_slots_into_chunks(items, chunk_size=5)
             session.state_json["chunked"] = chunked
             session.state_json["chunk_index"] = 0
 
             payload = create_whatsapp_list_message(chunked, from_, 0)
+            print("Sending slots payload:", payload, flush=True)
             result = await adapter.send_dynamic_list_message(to_phone=from_, interactive_payload=payload)
-            print(result)
+            print("Slots result:", result, flush=True)
 
     # If this is a brand new session, you can initialize it explicitly:
     
