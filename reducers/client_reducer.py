@@ -89,7 +89,7 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
             # persist in session data
             d["service_id"] = selected_service_id
             d["service_name"] = getattr(service, "name", None)
-            d["duration"] = getattr(service, "duration", None)
+            d["duration"] = getattr(service, "duration_min", None)
 
             # next step: ask for slots (later you'll send slots list)
             effects.append({
