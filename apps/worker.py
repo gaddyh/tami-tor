@@ -17,7 +17,7 @@ from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 from handlers.utility import now_israel
 from observability.obs import span_attrs
-from observability.langfuse_client import langfuse
+from observability.obs import instrument_io
 from observability.telemetry import mark_error
 
 from apps.config import WORK_STALE_SECONDS  # reuse your knob as “stale seconds”
@@ -42,19 +42,47 @@ def _lock_key(business_id: str, client_id: str) -> str:
     return f"lock:{business_id}:{client_id}"
 
 
+@instrument_io(
+    name="acquire_lock",
+    meta={"operation": "acquire_lock"},
+    input_fn=lambda business_id, client_id: {
+        "business_id": business_id,
+        "client_id": client_id,
+    },
+    output_fn=lambda result: result,
+    redact=True,
+)
 def acquire_lock(business_id: str, client_id: str) -> tuple[bool, str]:
     token = str(uuid.uuid4())
     ok = redis_client.set(_lock_key(business_id, client_id), token, nx=True, ex=LOCK_TTL_SECONDS)
     return bool(ok), token
 
-
+@instrument_io(
+    name="release_lock",
+    meta={"operation": "release_lock"},
+    input_fn=lambda business_id, client_id, token: {
+        "business_id": business_id,
+        "client_id": client_id,
+        "token": token,
+    },
+    output_fn=lambda result: result,
+    redact=True,
+)
 def release_lock(business_id: str, client_id: str, token: str) -> None:
     try:
         redis_client.eval(_RELEASE_LOCK_LUA, 1, _lock_key(business_id, client_id), token)
     except Exception:
         pass
 
-
+@instrument_io(
+    name="claim_work",
+    meta={"operation": "claim_work"},
+    input_fn=lambda db, work_id: {
+        "work_id": work_id,
+    },
+    output_fn=lambda result: result,
+    redact=True,
+)
 def claim_work(db: OrmSession, work_id: str) -> Optional[WorkItem]:
     stmt = text("""
         UPDATE work_items

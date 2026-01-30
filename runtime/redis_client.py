@@ -6,6 +6,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from redis import Redis
+from observability.obs import instrument_io
 
 # Local dev convenience; on Render env vars already exist.
 load_dotenv(".venv/.env")
@@ -50,12 +51,29 @@ _warn_if_stream_key("OUTBOX_QUEUE_NAME", QUEUE_OUTBOX)
 # ----------------------------
 # Generic work queue API
 # ----------------------------
+@instrument_io(
+    name="enqueue_work",
+    meta={"operation": "enqueue_work"},
+    input_fn=lambda work_id: {
+        "work_id": work_id,
+    },
+    output_fn=lambda result: result,
+    redact=True,
+)
 def enqueue_work(work_id: str) -> None:
     if not work_id:
         raise ValueError("work_id is required")
     redis_client.rpush(QUEUE_WORK, work_id)
 
-
+@instrument_io(
+    name="dequeue_work",
+    meta={"operation": "dequeue_work"},
+    input_fn=lambda block_seconds: {
+        "block_seconds": block_seconds,
+    },
+    output_fn=lambda result: result,
+    redact=True,
+)
 def dequeue_work(*, block_seconds: int = 10) -> Optional[str]:
     if block_seconds <= 0:
         raise ValueError("block_seconds must be > 0")
@@ -64,35 +82,3 @@ def dequeue_work(*, block_seconds: int = 10) -> Optional[str]:
         return None
     _, value = item
     return value
-
-
-# ----------------------------
-# Optional legacy helpers
-# ----------------------------
-def enqueue_inbound(inbound_id: str) -> None:
-    """
-    Legacy: if you still enqueue inbound directly.
-    Preferred: enqueue_work(work_id) where work_items.kind == 'INBOUND'
-    """
-    if not inbound_id:
-        raise ValueError("inbound_id is required")
-    redis_client.rpush(QUEUE_INBOUND, inbound_id)
-
-
-def dequeue_inbound(*, block_seconds: int = 10) -> Optional[str]:
-    if block_seconds <= 0:
-        raise ValueError("block_seconds must be > 0")
-    item = redis_client.blpop(QUEUE_INBOUND, timeout=block_seconds)
-    if not item:
-        return None
-    _, value = item
-    return value
-
-
-def enqueue_outbox(outbox_id: str) -> None:
-    """
-    Legacy: only if you still have Outbox in the system (e.g. /hello demo).
-    """
-    if not outbox_id:
-        raise ValueError("outbox_id is required")
-    redis_client.rpush(QUEUE_OUTBOX, outbox_id)
