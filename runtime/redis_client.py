@@ -51,29 +51,11 @@ _warn_if_stream_key("OUTBOX_QUEUE_NAME", QUEUE_OUTBOX)
 # ----------------------------
 # Generic work queue API
 # ----------------------------
-@instrument_io(
-    name="enqueue_work",
-    meta={"operation": "enqueue_work"},
-    input_fn=lambda work_id: {
-        "work_id": work_id,
-    },
-    output_fn=lambda result: result,
-    redact=True,
-)
 def enqueue_work(work_id: str) -> None:
     if not work_id:
         raise ValueError("work_id is required")
     redis_client.rpush(QUEUE_WORK, work_id)
 
-@instrument_io(
-    name="dequeue_work",
-    meta={"operation": "dequeue_work"},
-    input_fn=lambda block_seconds: {
-        "block_seconds": block_seconds,
-    },
-    output_fn=lambda result: result,
-    redact=True,
-)
 def dequeue_work(*, block_seconds: int = 10) -> Optional[str]:
     if block_seconds <= 0:
         raise ValueError("block_seconds must be > 0")
