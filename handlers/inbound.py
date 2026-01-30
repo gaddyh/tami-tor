@@ -129,6 +129,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                 print("Slots result:", result, flush=True)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print("Error processing message:", e, flush=True)
         raise
     # If this is a brand new session, you can initialize it explicitly:
