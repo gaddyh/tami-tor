@@ -86,9 +86,9 @@ def emit_event_with_langfuse(event: str, meta: dict | None = None) -> None:
     # Best-effort Langfuse (never break worker if LF is down/misconfigured)
     try:
         # 1) Event observation (discrete event in trace) :contentReference[oaicite:2]{index=2}
-        with langfuse.start_as_current_observation(as_type="event", name=event) as obs:
+        with langfuse.start_as_current_span(as_type="event", name=event) as span:
             # metadata is the most useful place for your meta payload
-            obs.update(metadata=meta)
+            span.update(metadata=meta)
 
         # 2) Counter-style metric via numeric score :contentReference[oaicite:3]{index=3}
         # Score name convention: "worker.event.<EVENT_NAME>"
