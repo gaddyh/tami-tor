@@ -200,7 +200,7 @@ ListResponse = NavigationResponse | SlotSelectionResponse | DisabledActionRespon
 
 def handle_list_response(
     user_selection: str, 
-    chunked_availability: ChunkedAvailability
+    chunked_availability: dict[str, Any]
 ) -> ListResponse:
     """
     Handle user's selection from the list message.
@@ -212,6 +212,8 @@ def handle_list_response(
     Returns:
         ListResponse (one of the response types)
     """
+    chunked_availability = ChunkedAvailability.model_validate(chunked_availability)
+
     # Navigation handling - Go Back
     if user_selection.startswith("nav_back_"):
         if user_selection == "nav_back_disabled":
