@@ -48,6 +48,21 @@ class ReduceResult:
     data: dict[str, Any]
     effects: list[Effect]
 
+from observability.obs import instrument_io
+
+@instrument_io(
+    name="reduce_session",
+    meta={"operation": "reduce_session"},
+    input_fn=lambda flow, step, data, msg, ctx: {
+        "flow": flow.value,
+        "step": step.value,
+        "data": data,
+        "msg": msg,
+        "ctx": ctx
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any], msg: RawMessage, ctx: dict[str, Any]) -> ReduceResult:
     d = dict(data or {})
     effects: list[Effect] = []

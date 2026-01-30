@@ -163,6 +163,20 @@ class CloudAPIAdapter():
             logger.exception("Error building MessageState from CloudAPI data")
             raise
 
+
+    from observability.obs import instrument_io
+
+    @instrument_io(
+        name="send_dynamic_list_message",
+        meta={"operation": "send_dynamic_list_message"},
+        input_fn=lambda to_phone, interactive_payload, reply_to: {
+            "to_phone": to_phone,
+            "interactive_payload": interactive_payload,
+            "reply_to": reply_to,
+        },
+        output_fn=lambda result: result,
+        redact=True
+    )
     async def send_dynamic_list_message(
         self,
         *,
@@ -222,6 +236,17 @@ class CloudAPIAdapter():
             "request": payload,
         }
 
+    @instrument_io(
+        name="send_action_buttons",
+        meta={"operation": "send_action_buttons"},
+        input_fn=lambda recipient, message, reply_to: {
+            "recipient": recipient,
+            "message": message,
+            "reply_to": reply_to,
+        },
+        output_fn=lambda result: result,
+        redact=True
+    )
     async def send_action_buttons(
             self,
             recipient: str,

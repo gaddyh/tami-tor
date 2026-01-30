@@ -52,27 +52,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     from_ = inbound.from_
     message_id = inbound.message_id
 
-    emit_event_with_langfuse(
-        event="INBOUND_ROW_LOADED",
-        meta={
-            "work_id": str(wi.work_id),
-            "message_id": message_id,
-            "from": from_,
-            "phone_number_id": phone_number_id,
-        },
-    )
-
     adapter = CloudAPIAdapter(phone_number_id)
     rawMessage: RawMessage = await adapter.parse_incoming(raw)
-
-    emit_event_with_langfuse(
-        event="INBOUND_PARSED",
-        meta={
-            "work_id": str(wi.work_id),
-            "message_id": message_id,
-            "msg_type": getattr(rawMessage, "type", None) or rawMessage.__class__.__name__,
-        },
-    )
 
     session = load_or_create_session(
         db,

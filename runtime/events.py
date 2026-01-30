@@ -72,7 +72,7 @@ def emit_event(
 
 
 
-def emit_event_with_langfuse(event: str, meta: dict | None = None) -> None:
+def emit_event_with_langfuse(event: str, meta: dict | None = None, useLangfuse:bool = False) -> None:
     """
     Emit your existing event, and also log to Langfuse:
       - an 'event' observation (keeps metadata)
@@ -82,6 +82,9 @@ def emit_event_with_langfuse(event: str, meta: dict | None = None) -> None:
 
     # Your existing event sink
     emit_event(event=event, meta=meta)
+
+    if not useLangfuse:
+        return
 
     # Best-effort Langfuse (never break worker if LF is down/misconfigured)
     try:

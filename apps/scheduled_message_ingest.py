@@ -10,7 +10,25 @@ from models.business_scheduled_message import BusinessScheduledMessage
 from runtime.redis_client import enqueue_work
 from runtime.events import emit_event
 from handlers.utility import now_israel
+from observability.obs import instrument_io
 
+@instrument_io(
+    name="persist_scheduled_message_and_enqueue",
+    meta={"operation": "persist_scheduled_message_and_enqueue"},
+    input_fn=lambda business_id, wa_id, client_id, to_chat_id, interactive_payload, workflow_id, send_at, to_name, idempotency_key: {
+        "business_id": business_id,
+        "wa_id": wa_id,
+        "client_id": client_id,
+        "to_chat_id": to_chat_id,
+        "interactive_payload": interactive_payload,
+        "workflow_id": workflow_id,
+        "send_at": send_at,
+        "to_name": to_name,
+        "idempotency_key": idempotency_key,
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 def persist_scheduled_message_and_enqueue(
     *,
     business_id: str,
