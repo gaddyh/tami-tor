@@ -20,16 +20,16 @@ from observability.obs import instrument_io
 @instrument_io(
     name="handle_process_inbound",
     meta={"operation": "handle_process_inbound"},
-    input_fn=lambda db, wi:WorkItem: {
+    input_fn=lambda db, wi: {
         "work_id": str(wi.work_id),
         "ref_id": str(wi.ref_id),
         "business_id": wi.business_id or "",
-        "client_id": wi.client_id or "",
+        "client_id": wi.client_id or ""
     },
     output_fn=lambda result: result,
-    redact=True,
+    redact=True
 )
-async def handle_process_inbound(db: Session, wi: WorkItem) -> dict:
+async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     if wi.kind != "INBOUND":
         raise NonRetryableError(f"handle_process_inbound got wrong kind: {wi.kind}")
 
