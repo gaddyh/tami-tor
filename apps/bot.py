@@ -10,7 +10,6 @@ from sqlalchemy import select
 
 from db.session import SessionLocal
 from models.session import Session
-from runtime.redis_client import enqueue_outbox
 
 import os
 import json
@@ -73,71 +72,6 @@ def health():
 from runtime.events import emit_event
 from runtime.redis_client import QUEUE_OUTBOX
 
-@app.post("/hello", response_model=HelloOut)
-def hello(inp: HelloIn) -> HelloOut:
-    with SessionLocal() as db:
-        existing = db.execute(
-            select(Session)
-            .where(Session.business_id == inp.business_id)
-            .where(Session.client_id == inp.client_id)
-            .where(Session.status == "active")
-            .limit(1)
-        ).scalar_one_or_none()
-
-        if existing:
-            session = existing
-            session.updated_at = datetime.now(timezone.utc)
-        else:
-            session = Session(
-                business_id=inp.business_id,
-                client_id=inp.client_id,
-                status="active",
-                state_json={},
-            )
-            db.add(session)
-            db.flush()
-
-        outbox = Outbox(
-            type="HELLO",
-            business_id=inp.business_id,
-            client_id=inp.client_id,
-            session_id=session.session_id,
-            payload_json={"text": "Hello from outbox"},
-            status="pending",
-        )
-        db.add(outbox)
-        db.commit()  # outbox is durable now
-
-        # ✅ log: durable DB row exists
-        emit_event(
-            event="OUTBOX_COMMITTED",
-            outbox_id=str(outbox.outbox_id),
-            type=outbox.type,
-            business_id=outbox.business_id,
-            client_id=outbox.client_id,
-            session_id=str(outbox.session_id),
-            meta={"where": "web"},
-        )
-
-        # ✅ enqueue to Redis
-        enqueue_outbox(str(outbox.outbox_id))
-
-        # ✅ log: redis push happened
-        emit_event(
-            event="OUTBOX_ENQUEUED",
-            outbox_id=str(outbox.outbox_id),
-            type=outbox.type,
-            business_id=outbox.business_id,
-            client_id=outbox.client_id,
-            session_id=str(outbox.session_id),
-            meta={"queue": QUEUE_OUTBOX},
-        )
-
-        return HelloOut(
-            session_id=str(session.session_id),
-            outbox_id=str(outbox.outbox_id),
-            status="enqueued",
-        )
 import json
 import os
 
