@@ -184,7 +184,18 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                 await adapter.send_action_buttons(
                     recipient=from_,
                     message=payload,
-                )                
+                )
+
+                emit_event_with_langfuse(
+                    event="INBOUND_CONFIRM_BUTTONS_SENT",
+                    meta={
+                        "work_id": str(wi.work_id),
+                        "session_id": str(session.session_id),
+                        "to_phone": from_,
+                        "state": session.state_json,
+                    },
+                )
+
         emit_event_with_langfuse(
             event="INBOUND_HANDLER_DONE",
             meta={"work_id": str(wi.work_id), "session_id": str(session.session_id), "state": session.state_json},
