@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 import pytz
 from collections import defaultdict
 from adapters.google.tokens import get_valid_credentials
+from typing import List
+
 from models.availability import TimeSlot, SlotChunk, ChunkedAvailability
 def init_google_calendar(user_id: str):
     creds = get_valid_credentials(user_id)
