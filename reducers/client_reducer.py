@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from handlers.utility import build_service_rows, get_list_reply_id
+from handlers.utility import build_service_rows, get_list_reply_id, get_btn_reply_id
 from models.session_state import SessionFlow, SessionStep
 from adapters.primitivies import RawMessage
 from typing import Any, Literal, TypedDict, Union
@@ -152,10 +152,12 @@ def reduce_session(*, flow: SessionFlow, step: SessionStep, data: dict[str, Any]
                     return ReduceResult(flow=flow, step=step, data=data, effects=effects)
 
         if step == SessionStep.CONFIRM:
-            # On confirm: finish client flow + trigger owner flow
-            effects.append({"kind": "SEND_TEXT", "to": "client", "text": "Thanks. Sent to the owner for approval."})
-            effects.append({"kind": "ENQUEUE_OWNER_APPROVAL", "payload": {"summary": d}})
-            return ReduceResult(flow=flow, step=SessionStep.DONE, data=d, effects=effects)
+            btn_id = get_btn_reply_id(msg)
+            if btn_id and btn_id.endswith("_confirm"):
+                # On confirm: finish client flow + trigger owner flow
+                effects.append({"kind": "SEND_OWNER_APPROVAL_NOTIFICATION", "to": "owner", "text": "Thanks. Sent to the owner for approval."})
+                effects.append({"kind": "ENQUEUE_OWNER_APPROVAL", "payload": {"summary": d}})
+                return ReduceResult(flow=flow, step=SessionStep.DONE, data=d, effects=effects)
 
     # Default fallback: reset safely
     effects.append({"kind": "SEND_TEXT", "to": "client", "text": "Let’s start over. What service do you need?"})

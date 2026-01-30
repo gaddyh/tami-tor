@@ -10,6 +10,13 @@ def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")
     return datetime.now(tz)
 
+def get_btn_reply_id(msg) -> str | None:
+    # adjust to your RawMessage shape
+    c = getattr(msg, "content", None)
+    lr = getattr(c, "button_reply", None) if c else None
+    payload = getattr(lr, "payload", None) if lr else None
+    return payload or None
+
 def get_list_reply_id(msg) -> str | None:
     # adjust to your RawMessage shape
     c = getattr(msg, "content", None)
