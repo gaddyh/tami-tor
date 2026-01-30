@@ -4,7 +4,7 @@ from models.session_state import SessionFlow, SessionStep
 from adapters.primitivies import RawMessage
 from typing import Any, Literal, TypedDict, Union
 from reducers.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
-
+from models.availability import ChunkedAvailability, TimeSlot
 class ListRow(TypedDict):
     id: str          # payload you get back in list_reply.id
     title: str
