@@ -9,6 +9,7 @@ from db.session import SessionLocal
 from models.event_log import EventLog
 from runtime.redis_client import redis_client
 from handlers.utility import now_israel
+from observability.langfuse_client import langfuse
 
 STREAM_OUTBOX_EVENTS = "events:work"
 
@@ -67,4 +68,34 @@ def emit_event(
             db.commit()
     except Exception as e:
         print(f"Failed to log event {event}: {e}")
+        pass
+
+
+
+def emit_event_with_langfuse(event: str, meta: dict | None = None) -> None:
+    """
+    Emit your existing event, and also log to Langfuse:
+      - an 'event' observation (keeps metadata)
+      - a numeric score (acts like a metric counter)
+    """
+    meta = meta or {}
+
+    # Your existing event sink
+    emit_event(event=event, meta=meta)
+
+    # Best-effort Langfuse (never break worker if LF is down/misconfigured)
+    try:
+        # 1) Event observation (discrete event in trace) :contentReference[oaicite:2]{index=2}
+        with langfuse.start_as_current_observation(as_type="event", name=event) as obs:
+            # metadata is the most useful place for your meta payload
+            obs.update(metadata=meta)
+
+        # 2) Counter-style metric via numeric score :contentReference[oaicite:3]{index=3}
+        # Score name convention: "worker.event.<EVENT_NAME>"
+        langfuse.score_current_trace(
+            name=f"worker.event.{event}",
+            value=1.0,
+            data_type="NUMERIC",
+        )
+    except Exception:
         pass

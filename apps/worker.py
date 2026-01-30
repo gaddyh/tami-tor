@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session as OrmSession
 from db.session import SessionLocal
 from models.work_item import WorkItem
 from runtime.redis_client import dequeue_work, enqueue_work, redis_client
-from runtime.events import emit_event
+from runtime.events import emit_event_with_langfuse
 from handlers.work_registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 from handlers.utility import now_israel
@@ -21,38 +21,8 @@ from observability.langfuse_client import langfuse
 from observability.telemetry import mark_error
 
 from apps.config import WORK_STALE_SECONDS  # reuse your knob as “stale seconds”
-
 LOCK_TTL_SECONDS = int(WORK_STALE_SECONDS)
 MAX_ATTEMPTS = 5
-
-
-def emit_event_with_langfuse(event: str, meta: dict | None = None) -> None:
-    """
-    Emit your existing event, and also log to Langfuse:
-      - an 'event' observation (keeps metadata)
-      - a numeric score (acts like a metric counter)
-    """
-    meta = meta or {}
-
-    # Your existing event sink
-    emit_event(event=event, meta=meta)
-
-    # Best-effort Langfuse (never break worker if LF is down/misconfigured)
-    try:
-        # 1) Event observation (discrete event in trace) :contentReference[oaicite:2]{index=2}
-        with langfuse.start_as_current_observation(as_type="event", name=event) as obs:
-            # metadata is the most useful place for your meta payload
-            obs.update(metadata=meta)
-
-        # 2) Counter-style metric via numeric score :contentReference[oaicite:3]{index=3}
-        # Score name convention: "worker.event.<EVENT_NAME>"
-        langfuse.score_current_trace(
-            name=f"worker.event.{event}",
-            value=1.0,
-            data_type="NUMERIC",
-        )
-    except Exception:
-        pass
 
 
 def _backoff_seconds(attempt: int) -> int:
