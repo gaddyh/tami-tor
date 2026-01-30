@@ -115,7 +115,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                     user_id=business.get_default_provider_id(),
                     timezone=business.timezone,
                     start_date=now.isoformat(),
-                    end_date=(now + timedelta(days=2)).isoformat(),
+                    end_date=(now + timedelta(days=4)).isoformat(),
                     duration=session.state_json["data"]["duration"],
                 )
                 print("Available slots:", items, flush=True)
