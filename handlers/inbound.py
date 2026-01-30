@@ -74,6 +74,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
             "session_id": str(session.session_id),
             "business_id": session.business_id,
             "client_id": session.client_id,
+            "state": session.state_json,
         },
     )
 
@@ -83,7 +84,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
         session.state_json = dump_session_state(flow, step, data)
         emit_event_with_langfuse(
             event="INBOUND_SESSION_STATE_BOOTSTRAPPED",
-            meta={"work_id": str(wi.work_id), "session_id": str(session.session_id)},
+            meta={"work_id": str(wi.work_id), "session_id": str(session.session_id),"state": session.state_json}
         )
 
     business = load_business_by_wa_id(db, inbound.phone_number_id)
@@ -107,6 +108,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
             "flow": result.flow.value,
             "step": result.step.value,
             "effects_count": len(result.effects or []),
+            "state": session.state_json,
         },
     )
 
@@ -171,12 +173,13 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                         "slots_total": len(items or []),
                         # keep it light; don’t dump full API responses into metadata
                         "send_ok": bool(send_result),
+                        "state": session.state_json,
                     },
                 )
 
         emit_event_with_langfuse(
             event="INBOUND_HANDLER_DONE",
-            meta={"work_id": str(wi.work_id), "session_id": str(session.session_id)},
+            meta={"work_id": str(wi.work_id), "session_id": str(session.session_id), "state": session.state_json},
         )
 
     except Exception as e:
@@ -186,6 +189,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
                 "work_id": str(wi.work_id),
                 "ref_id": str(wi.ref_id),
                 "error": str(e),
+                "state": session.state_json,
             },
         )
         raise
