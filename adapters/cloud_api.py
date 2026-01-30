@@ -238,10 +238,9 @@ class CloudAPIAdapter():
     @instrument_io(
         name="send_action_buttons",
         meta={"operation": "send_action_buttons"},
-        input_fn=lambda self, recipient, message, reply_to: {
+        input_fn=lambda self, recipient, message: {
             "recipient": recipient,
             "message": message,
-            "reply_to": reply_to,
         },
         output_fn=lambda result: result,
         redact=True
