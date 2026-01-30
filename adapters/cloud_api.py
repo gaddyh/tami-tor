@@ -169,7 +169,7 @@ class CloudAPIAdapter():
     @instrument_io(
         name="send_dynamic_list_message",
         meta={"operation": "send_dynamic_list_message"},
-        input_fn=lambda to_phone, interactive_payload, reply_to, graph_version, timeout_s: {
+        input_fn=lambda self, to_phone, interactive_payload, reply_to, graph_version, timeout_s: {
             "to_phone": to_phone,
             "interactive_payload": interactive_payload,
             "reply_to": reply_to,
@@ -241,7 +241,7 @@ class CloudAPIAdapter():
     @instrument_io(
         name="send_action_buttons",
         meta={"operation": "send_action_buttons"},
-        input_fn=lambda recipient, message, reply_to: {
+        input_fn=lambda self, recipient, message, reply_to: {
             "recipient": recipient,
             "message": message,
             "reply_to": reply_to,
