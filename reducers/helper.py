@@ -1,6 +1,5 @@
 
-from handoffs.scheduling.models import ChunkedAvailability, SlotChunk, TimeSlot
-from shared.google_calendar.availability import _get_available_slots
+from models.availability import ChunkedAvailability, SlotChunk, TimeSlot
 from typing import List
 
 # Updated function to return Pydantic models
