@@ -92,40 +92,45 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> None:
     
     print("Reducer result:", result, flush=True)
 
-    for eff in result.effects:
-        if eff["kind"] == "SEND_SERVICE_LIST" and eff.get("to") == "client":
-            print("Sending service list", flush=True)
-            payload = services_list_payload(eff["rows"])
+    try:
 
-            persist_scheduled_message_and_enqueue(
-                business_id=session.business_id,
-                wa_id=inbound.phone_number_id,                 # phone_number_id
-                client_id=session.client_id,                   # chat id
-                to_chat_id=from_,
-                interactive_payload=payload,
-                workflow_id=str(session.session_id),
-            )
+        for eff in result.effects:
+            if eff["kind"] == "SEND_SERVICE_LIST" and eff.get("to") == "client":
+                print("Sending service list", flush=True)
+                payload = services_list_payload(eff["rows"])
 
-        if eff["kind"] == "SEND_SLOTS_LIST" and eff.get("to") == "client":
-            print("Sending slots list", flush=True)
-            now = now_israel()
-            items = get_available_slots(
-                user_id=business.get_default_provider_id(),
-                timezone=business.timezone,
-                start_date=now.isoformat(),
-                end_date=(now + timedelta(days=10)).isoformat(),
-                duration=session.state_json["duration"],
-            )
-            print("Available slots:", items, flush=True)
-            chunked: ChunkedAvailability = divide_slots_into_chunks(items, chunk_size=5)
-            session.state_json["chunked"] = chunked
-            session.state_json["chunk_index"] = 0
+                persist_scheduled_message_and_enqueue(
+                    business_id=session.business_id,
+                    wa_id=inbound.phone_number_id,                 # phone_number_id
+                    client_id=session.client_id,                   # chat id
+                    to_chat_id=from_,
+                    interactive_payload=payload,
+                    workflow_id=str(session.session_id),
+                )
 
-            payload = create_whatsapp_list_message(chunked, from_, 0)
-            print("Sending slots payload:", payload, flush=True)
-            result = await adapter.send_dynamic_list_message(to_phone=from_, interactive_payload=payload)
-            print("Slots result:", result, flush=True)
+            if eff["kind"] == "SEND_SLOTS_LIST" and eff.get("to") == "client":
+                print("Sending slots list", flush=True)
+                now = now_israel()
+                items = get_available_slots(
+                    user_id=business.get_default_provider_id(),
+                    timezone=business.timezone,
+                    start_date=now.isoformat(),
+                    end_date=(now + timedelta(days=2)).isoformat(),
+                    duration=session.state_json["duration"],
+                )
+                print("Available slots:", items, flush=True)
+                chunked: ChunkedAvailability = divide_slots_into_chunks(items, chunk_size=5)
+                session.state_json["chunked"] = chunked
+                session.state_json["chunk_index"] = 0
 
+                payload = create_whatsapp_list_message(chunked, from_, 0)
+                print("Sending slots payload:", payload, flush=True)
+                result = await adapter.send_dynamic_list_message(to_phone=from_, interactive_payload=payload)
+                print("Slots result:", result, flush=True)
+
+    except Exception as e:
+        print("Error processing message:", e, flush=True)
+        raise
     # If this is a brand new session, you can initialize it explicitly:
     
     # don't commit here; let worker commit at the end
