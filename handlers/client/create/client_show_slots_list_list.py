@@ -1,6 +1,6 @@
 
 from models.session_state import SessionState, SessionStep, InputType
-from handlers.models import HandlerResult, Effect
+from handlers.models import HandlerResult, Effect, SendSlotsListEffect, SendConfirmButtonsEffect
 from adapters.primitivies import RawMessage
 from typing import Any
 from observability.obs import instrument_io
@@ -28,7 +28,7 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
             state.data.chunked_index = res.chunk_index
             state.step = SessionStep.SLOTS_PICK
             state.error_message = None
-            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": []})
+            effects.append(SendSlotsListEffect(kind="SEND_SLOTS_LIST", to="client", rows=[]))
             return HandlerResult(state=state, effects=effects)
 
         case SlotSelectionResponse():
@@ -36,7 +36,7 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
             state.data.chosen_slot = slot
             state.step = SessionStep.CONFIRM
             state.error_message = None
-            effects.append({"kind": "SEND_CONFIRM_BUTTONS", "to": "client", "rows": []})
+            effects.append( SendConfirmButtonsEffect(kind="SEND_CONFIRM_BUTTONS", to="client", body="", buttons=[]))
             return HandlerResult(state=state, effects=effects)
 
         case DisabledActionResponse():
