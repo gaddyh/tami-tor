@@ -5,7 +5,6 @@ from handlers.client.create.client_show_services_list_list import client_show_se
 from handlers.client.create.client_show_slots_list_list import client_show_slots_list_list
 from handlers.client.create.client_confirm_btn_btn import client_confirm_btn_btn
 from handlers.client.create.init_text import init_text
-from handlers.client.create.init_list import init_list
 from models.session import Session
 
 from adapters.primitivies import RawMessage
