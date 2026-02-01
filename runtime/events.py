@@ -2,16 +2,20 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 from db.session import SessionLocal
 from models.event_log import EventLog
 from runtime.redis_client import redis_client
-from handlers.utility import now_israel
+from zoneinfo import ZoneInfo
 from observability.langfuse_client import langfuse
 
 STREAM_OUTBOX_EVENTS = "events:work"
+
+def now_israel():
+    tz = ZoneInfo("Asia/Jerusalem")
+    return datetime.now(tz)
 
 
 def emit_event(
