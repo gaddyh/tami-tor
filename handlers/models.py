@@ -11,6 +11,7 @@ from models.session_state import InputType, SessionFlow, SessionStep, SessionSta
 from models.session import Session
 
 from adapters.primitivies import RawMessage
+from pydantic import BaseModel
 
 class ListRow(TypedDict):
     id: str          # payload you get back in list_reply.id
@@ -55,7 +56,7 @@ class ReduceResult:
     data: dict[str, Any]
     effects: list[Effect]
 
-class HandlerResult:
+class HandlerResult(BaseModel):
     state: SessionState
     effects: list[Effect]
 
