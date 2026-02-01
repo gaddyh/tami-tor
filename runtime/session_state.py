@@ -4,6 +4,7 @@ from typing import Any, Tuple
 
 from adapters.primitivies import ContentType, RawMessage
 from models.session_state import (
+    Actor,
     SessionFlow,
     SessionState,
     SessionStep,
@@ -17,16 +18,16 @@ from observability.obs import instrument_io
 @instrument_io(
     name="init_state",
     meta={"operation": "init_state"},
-    input_fn=lambda state, rawMessage: {
-        "state": state,
+    input_fn=lambda rawMessage, actor: {
         "raw_message": rawMessage.model_dump(),
+        "actor": actor,
     },
     output_fn=lambda state: {
-        "state": state,
+        "state": state.model_dump(),
     },
     redact=True
 )
-def init_state(state: SessionState, rawMessage:RawMessage) -> SessionState:
+def init_state(rawMessage:RawMessage, actor:Actor) -> SessionState:
     
     flow = SessionFlow.CLIENT_CREATE #TODO add flow_pick step or llm for text
     step = SessionStep.INIT
@@ -44,11 +45,12 @@ def init_state(state: SessionState, rawMessage:RawMessage) -> SessionState:
             type = InputType.LIST_ID
     
     return SessionState(
+        actor=actor,
         flow=flow,
         step=step,
         input_type=type,
         expected_type=None,
-        data=None
+        data=None,
     )
     
 

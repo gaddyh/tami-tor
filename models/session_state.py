@@ -8,6 +8,10 @@ from sqlalchemy.sql.coercions import expect
 from pydantic import BaseModel
 from models.availability import ChunkedAvailability, TimeSlot
 
+class Actor(str, Enum):
+    CLIENT = "client"
+    OWNER = "owner"
+    PROVIDER = "provider"
 
 class InputType(str, Enum):
     AUDIO = "audio"
@@ -46,6 +50,7 @@ class SessionData(BaseModel):
     data: dict[str, Any]
 
 class SessionState(BaseModel):
+    actor: Actor
     flow: SessionFlow
     step: SessionStep
     input_type: InputType

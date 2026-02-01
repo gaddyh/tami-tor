@@ -6,6 +6,7 @@ from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound
 from runtime.session_state import init_state
+from models.session_state import Actor
 from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
@@ -40,14 +41,16 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
     session = load_or_create_session(db, business_id=wi.business_id, client_id=wi.client_id)
 
-    if not session.state_json:
-        state = init_state(session, rawMessage)
-        session.state_json = state.model_dump()
-
     business = load_business_by_id(db, wi.business_id)
 
+    is_provider = business.is_provider(wi.client_id)
+    if not session.state_json:
+        state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
+        session.state_json = state.model_dump()
+
+
     ctx = {
-        "is_provider": business.is_provider(wi.client_id),
+        "is_provider": is_provider,
         "services": business.services(),
         "timezone": business.timezone,
         "booking_policy_mode": business.booking_policy_mode,

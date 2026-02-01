@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from handlers.utility import build_service_rows, get_list_reply_id, get_btn_reply_id
-from models.session_state import SessionFlow, SessionStep
 from adapters.primitivies import RawMessage
 from typing import Any, Literal, TypedDict, Union
 from reducers.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
 from models.availability import ChunkedAvailability, TimeSlot
 from typing import Callable, Dict, Any, Optional, Tuple
 
-from models.session_state import InputType, SessionFlow, SessionStep, SessionState
+from models.session_state import Actor, InputType, SessionFlow, SessionStep, SessionState
 from models.session import Session
 
 from adapters.primitivies import RawMessage
@@ -64,7 +63,7 @@ class HandlerResult(BaseModel):
 Handler = Callable[[Session, RawMessage, dict[str, Any]], HandlerResult]
 
 # (flow, step, input_type, expected_type) where expected_type=None means "wildcard"
-RouteKey = Tuple[SessionFlow, SessionStep, InputType, Optional[InputType]]
+RouteKey = Tuple[Actor, SessionFlow, SessionStep, InputType, Optional[InputType]]
 
 INBOUND_REGISTRY: Dict[RouteKey, Handler] = {}
 
