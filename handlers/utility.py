@@ -129,7 +129,7 @@ def build_service_rows(services: list[Service]) -> list[dict]:
         "from_": inbound.from_ or "",
         "message_id": inbound.message_id or "",
     },
-    output_fn=lambda msg, adapter: msg,
+    output_fn=lambda rawMessage, adapter: {"msg": rawMessage.model_dump(), "adapter": adapter.phone_number_id},
     redact=True
 )
 async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
