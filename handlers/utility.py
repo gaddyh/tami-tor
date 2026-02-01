@@ -116,12 +116,13 @@ def build_service_rows(services: list[Service]) -> list[dict]:
         if s.is_active
     ]
 
-def output_fn(result, _):
+def output_fn(result):
     rawMessage, adapter = result
     return {
         "msg": rawMessage.model_dump(),
         "adapter": adapter.phone_number_id,
     }
+
 
 
 @instrument_io(
@@ -175,7 +176,7 @@ async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
         },
     )
 
-    return rawMessage, adapter
+    return (rawMessage, adapter)
 
 
 def load_or_create_session(
