@@ -54,6 +54,7 @@ class SessionState(BaseModel):
     flow: SessionFlow
     step: SessionStep
     input_type: InputType
+    error_message: Optional[str] = None
+    data: SessionData
     expected_type: Optional[InputType] = None
     
-    data: Optional[SessionData] = None

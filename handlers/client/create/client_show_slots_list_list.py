@@ -25,27 +25,27 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
     res: ListResponse = handle_list_response(list_id, state.data.chunked)
     match res:
         case NavigationResponse():
-            state.data.chunk_index = res.chunk_index
-            state.data.client_step = SessionStep.SLOTS_PICK
-            state.data.error_message = None
+            state.chunked_index = res.chunk_index
+            state.step = SessionStep.SLOTS_PICK
+            state.error_message = None
             effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": []})
             return HandlerResult(state=state, effects=effects)
 
         case SlotSelectionResponse():
             slot: TimeSlot = res.slot
-            state.data.chosen_slot = slot
-            state.data.client_step = SessionStep.CONFIRM
-            state.data.error_message = None
+            state.chosen_slot = slot
+            state.step = SessionStep.CONFIRM
+            state.error_message = None
             effects.append({"kind": "SEND_CONFIRM_BUTTONS", "to": "client", "rows": []})
             return HandlerResult(state=state, effects=effects)
 
         case DisabledActionResponse():
-            state.data.client_step = SessionStep.SLOTS_PICK
-            state.data.error_message = res.message
+            state.step = SessionStep.SLOTS_PICK
+            state.error_message = res.message
             return HandlerResult(state=state, effects=effects)
 
         case UnknownActionResponse():
-            state.data.client_step = SessionStep.SLOTS_PICK
-            state.data.error_message = res.message
+            state.step = SessionStep.SLOTS_PICK
+            state.error_message = res.message
             return HandlerResult(state=state, effects=effects)
     return HandlerResult(state=state, effects=[])
