@@ -162,6 +162,12 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     },
                 )
 
+            if kind == "SEND_WAITING_OWNER_APPROVAL_NOTIFICATION" and eff.get("to") == "client":
+                await adapter.send_message(
+                    recipient=wi.client_id,
+                    message=eff.get("text", ""),
+                )
+
         emit_event(
             event="INBOUND_HANDLER_DONE",
             inbound_id=str(wi.ref_id),

@@ -165,6 +165,43 @@ class CloudAPIAdapter():
 
 
     from observability.obs import instrument_io
+    @instrument_io(
+            name="send_message",
+            meta={"operation": "send_message"},
+            input_fn=lambda self, to_phone, interactive_payload: {
+                "to_phone": to_phone,
+                "interactive_payload": interactive_payload,
+            },
+            output_fn=lambda result: result,
+            redact=True
+        )
+    async def send_message(self, recipient: str, message: str, reply_to: str | None = None) -> dict:
+        print("Sending message to", recipient, "with message:", message)
+
+        url = f"https://graph.facebook.com/v16.0/{self.phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient.replace("@c.us", ""),
+            "type": "text",
+            "text": {"body": message}
+        }
+
+        if reply_to:
+            payload["context"] = {"message_id": reply_to}   
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, headers=headers)
+
+        if response.status_code == 200:
+            return {"status": "sent", "response": response.json()}
+        else:
+            logger.error(f"Failed to send message: {response.status_code} - {response.text}")
+            return {"status": "failed", "error": response.text}
+
 
     @instrument_io(
         name="send_dynamic_list_message",
