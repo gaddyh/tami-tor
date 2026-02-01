@@ -14,7 +14,7 @@ from reducers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
-from registry import INBOUND_REGISTRY, dispatch
+from handlers.registry import dispatch
 
 @instrument_io(
     name="handle_process_inbound",
