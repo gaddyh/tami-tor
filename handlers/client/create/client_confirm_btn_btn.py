@@ -1,10 +1,11 @@
 
 from models.session_state import SessionState
-from handlers.models import HandlerResult
-from models.session import Session
+from handlers.models import HandlerResult, Effect
 from adapters.primitivies import RawMessage
+from models.session_state import SessionFlow, SessionStep
 from typing import Any
 from observability.obs import instrument_io
+from handlers.utility import get_btn_reply_id
 
 @instrument_io(
     name="client_confirm_btn_btn",
@@ -18,4 +19,13 @@ from observability.obs import instrument_io
 )
 def client_confirm_btn_btn(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
     print("client_confirm_btn_btn ", state)
-    return HandlerResult(state=state, effects=[])
+    effects: list[Effect] = []
+
+    btn_id = get_btn_reply_id(msg)
+    if btn_id and btn_id.endswith("_confirm"):
+        # On confirm: finish client flow + trigger owner flow
+        state.step = SessionStep.DONE
+        effects.append({"kind": "SEND_OWNER_APPROVAL_NOTIFICATION", "to": "owner", "text": "Thanks. Sent to the owner for approval."})
+        effects.append({"kind": "ENQUEUE_OWNER_APPROVAL", "payload": {"summary": state.data}})
+        return HandlerResult(state=state, effects=effects)
+    return HandlerResult(state=state, effects=effects)

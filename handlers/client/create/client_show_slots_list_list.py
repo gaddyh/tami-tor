@@ -48,4 +48,3 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
             state.step = SessionStep.SLOTS_PICK
             state.error_message = res.message
             return HandlerResult(state=state, effects=effects)
-    return HandlerResult(state=state, effects=[])
