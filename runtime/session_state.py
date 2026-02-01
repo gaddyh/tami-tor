@@ -45,7 +45,7 @@ def init_state(rawMessage:RawMessage, actor:Actor) -> SessionState:
             type = InputType.LIST_ID
     
     return SessionState(
-        actor=actor,
+        actor=Actor.CLIENT, #TODO change to actor after debugging
         flow=flow,
         step=step,
         input_type=type,
