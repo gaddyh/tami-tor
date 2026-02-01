@@ -87,8 +87,7 @@ class ContentInfo:
     contact: Optional[SharedContactInfo] = None
     referral: Optional[ReferralInfo] = None
 
-@dataclass
-class RawMessage:
+class RawMessage(BaseModel):
     content: ContentInfo
     message_data: Any
     idempotency_key: str
