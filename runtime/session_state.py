@@ -49,7 +49,7 @@ def init_state(rawMessage:RawMessage, actor:Actor) -> SessionState:
         flow=flow,
         step=step,
         input_type=type,
-        expected_type=None,
+        expected_type=InputType.TEXT,
         data=None,
     )
     

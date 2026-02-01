@@ -7,8 +7,8 @@ from typing import Any
 from observability.obs import instrument_io
 
 @instrument_io(
-    name="client_show_slots_btn_btn",
-    meta={"operation": "client_show_slots_btn_btn"},
+    name="client_confirm_btn_btn",
+    meta={"operation": "client_confirm_btn_btn"},
     input_fn=lambda session, msg, ctx: {
         "work_id": str(session.session_id),
         "business_id": session.business_id or "",
@@ -18,8 +18,9 @@ from observability.obs import instrument_io
         "ctx": ctx,
     },
     output_fn=lambda result: result,
+    
     redact=True
 )
-def client_show_slots_btn_btn(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
-    print("client_show_slots_btn_btn ", session.state_json)
-    return HandlerResult(state=SessionState.model_validate(session.state_json), effects=[]) 
+def client_confirm_btn_btn(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+    print("client_confirm_btn_btn ", session.state_json)
+    return HandlerResult(state=SessionState.model_validate(session.state_json), effects=[])
