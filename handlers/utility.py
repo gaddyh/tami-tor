@@ -15,6 +15,7 @@ from adapters.cloud_api import CloudAPIAdapter
 from models.business import Business
 from runtime.redis_client import enqueue_work
 from runtime.events import emit_event
+from observability.obs import instrument_io
 
 def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")

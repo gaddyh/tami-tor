@@ -8,6 +8,7 @@ from models.session import Session
 
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
+from observability.obs import instrument_io
 
 @instrument_io(
     name="dispatch",
