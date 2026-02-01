@@ -11,7 +11,8 @@ from models.session_state import (
     DEFAULT_FLOW,
     DEFAULT_STEP,
     DEFAULT_VERSION,
-    InputType
+    InputType,
+    SessionData,
 )
 from observability.obs import instrument_io
 
@@ -50,7 +51,7 @@ def init_state(rawMessage:RawMessage, actor:Actor) -> SessionState:
         step=step,
         input_type=type,
         expected_type=InputType.TEXT,
-        data=None,
+        data=SessionData(),
     )
     
 
