@@ -36,7 +36,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     if not inbound:
         raise NonRetryableError(f"InboundMessage not found for ref_id={wi.ref_id}")
 
-    rawMessage, adapter = ingest_inbound(inbound, wi)
+    rawMessage, adapter = await ingest_inbound(inbound, wi)
 
     session = load_or_create_session(db, business_id=wi.business_id, client_id=wi.client_id)
 
