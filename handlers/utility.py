@@ -189,6 +189,7 @@ async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
         "session_id": str(session.session_id),
         "business_id": session.business_id,
         "client_id": session.client_id,
+        "state_json": session.state_json,
     },
     redact=True
 )
