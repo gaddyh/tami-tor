@@ -41,7 +41,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     session = load_or_create_session(db, business_id=wi.business_id, client_id=wi.client_id)
 
     if not session.state_json:
-        session.state_json = init_state(session, rawMessage)
+        state = init_state(session, rawMessage)
+        session.state_json = state.model_dump()
 
     business = load_business_by_id(db, wi.business_id)
 
