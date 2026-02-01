@@ -4,6 +4,7 @@ from models.session_state import InputType, SessionFlow, SessionStep, SessionSta
 from handlers.client.create.show_slots_btn_text import client_show_slots_btn_text
 from handlers.client.create.show_slots_btn_btn import client_show_slots_btn_btn
 from handlers.client.create.init_text import init_text
+from handlers.client.create.init_list import init_list
 from models.session import Session
 
 from adapters.primitivies import RawMessage
