@@ -5,6 +5,17 @@ from adapters.primitivies import RawMessage
 from typing import Any, Literal, TypedDict, Union
 from reducers.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
 from models.availability import ChunkedAvailability, TimeSlot
+from typing import Callable, Dict, Any, Optional, Tuple
+
+from models.session_state import InputType, SessionFlow, SessionStep, SessionState
+from models.session import Session
+
+from adapters.primitivies import RawMessage
+from handlers.models import Effect
+
+
+
+
 class ListRow(TypedDict):
     id: str          # payload you get back in list_reply.id
     title: str
@@ -47,3 +58,20 @@ class ReduceResult:
     step: SessionStep
     data: dict[str, Any]
     effects: list[Effect]
+
+class HandlerResult:
+    state: SessionState
+    effects: list[Effect]
+
+
+Handler = Callable[[Session, RawMessage, dict[str, Any]], HandlerResult]
+
+# (flow, step, input_type, expected_type) where expected_type=None means "wildcard"
+RouteKey = Tuple[SessionFlow, SessionStep, InputType, Optional[InputType]]
+
+INBOUND_REGISTRY: Dict[RouteKey, Handler] = {}
+
+
+class NoRouteFound(Exception):
+    pass
+

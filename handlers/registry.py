@@ -7,23 +7,7 @@ from handlers.client.create.init_text import init_text
 from models.session import Session
 
 from adapters.primitivies import RawMessage
-from handlers.models import Effect
-
-class HandlerResult:
-    state: SessionState
-    effects: list[Effect]
-
-
-Handler = Callable[[Session, RawMessage, dict[str, Any]], HandlerResult]
-
-# (flow, step, input_type, expected_type) where expected_type=None means "wildcard"
-RouteKey = Tuple[SessionFlow, SessionStep, InputType, Optional[InputType]]
-
-INBOUND_REGISTRY: Dict[RouteKey, Handler] = {}
-
-
-class NoRouteFound(Exception):
-    pass
+from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 
 
 def dispatch(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
