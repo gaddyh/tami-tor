@@ -36,6 +36,7 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
             state.data.chosen_slot = slot
             state.step = SessionStep.CONFIRM
             state.error_message = None
+            state.expected_type = InputType.BTN_ID
             effects.append( SendConfirmButtonsEffect(kind="SEND_CONFIRM_BUTTONS", to="client", body="", buttons=[]))
             return HandlerResult(state=state, effects=effects)
 
