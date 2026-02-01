@@ -60,7 +60,7 @@ def load_business_by_id(db, business_id: str) -> Business:
     ).scalar_one_or_none()
 
     if not business:
-        raise ValueError(f"No business configured for id={business_id}")
+        return load_business_by_wa_id(db, business_id)
 
     return business
 
