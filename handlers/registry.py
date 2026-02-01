@@ -34,7 +34,7 @@ def dispatch(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerR
     if handler is None:
         raise NoRouteFound(f"No handler registered for {exact_key}")
 
-    return handler(session, msg, ctx)
+    return handler(state, msg, ctx)
 
 
 INBOUND_REGISTRY[

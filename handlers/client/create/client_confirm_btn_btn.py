@@ -9,18 +9,13 @@ from observability.obs import instrument_io
 @instrument_io(
     name="client_confirm_btn_btn",
     meta={"operation": "client_confirm_btn_btn"},
-    input_fn=lambda session, msg, ctx: {
-        "work_id": str(session.session_id),
-        "business_id": session.business_id or "",
-        "client_id": session.client_id or "",
-        "flow": session.state_json["flow"],
-        "step": session.state_json["step"],
+    input_fn=lambda state, msg, ctx: {
+        "state": state,
         "ctx": ctx,
     },
     output_fn=lambda result: result,
-    
     redact=True
 )
-def client_confirm_btn_btn(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
-    print("client_confirm_btn_btn ", session.state_json)
-    return HandlerResult(state=SessionState.model_validate(session.state_json), effects=[])
+def client_confirm_btn_btn(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+    print("client_confirm_btn_btn ", state)
+    return HandlerResult(state=state, effects=[])
