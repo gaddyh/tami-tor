@@ -140,7 +140,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 )
 
             if kind == "SEND_CONFIRM_BUTTONS" and eff.get("to") == "client":
-                slot = session.state_json["data"]["slot"]
+                slot = session.state_json["data"]["chosen_slot"]
                 slot = TimeSlot.model_validate(slot)
                 payload = build_hebrew_slot_confirmation(slot)
                 await adapter.send_action_buttons(
