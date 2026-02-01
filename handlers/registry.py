@@ -15,7 +15,6 @@ from observability.obs import instrument_io
     meta={"operation": "dispatch"},
     input_fn=lambda session, msg, ctx: {
         "work_id": str(session.session_id),
-        "ref_id": str(msg.message_id),
         "business_id": session.business_id or "",
         "client_id": session.client_id or "",
         "flow": session.flow,
