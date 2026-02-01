@@ -115,6 +115,22 @@ def build_service_rows(services: list[Service]) -> list[dict]:
         if s.is_active
     ]
 
+
+@instrument_io(
+    name="ingest_inbound",
+    meta={"operation": "ingest_inbound"},
+    input_fn=lambda inbound, wi: {
+        "work_id": str(wi.work_id),
+        "ref_id": str(wi.ref_id),
+        "business_id": wi.business_id or "",
+        "client_id": wi.client_id or "",
+        "phone_number_id": inbound.phone_number_id or "",
+        "from_": inbound.from_ or "",
+        "message_id": inbound.message_id or "",
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
     raw = inbound.raw or {}
     phone_number_id = inbound.phone_number_id

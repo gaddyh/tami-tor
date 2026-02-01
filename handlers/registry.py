@@ -9,7 +9,18 @@ from models.session import Session
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 
-
+@instrument_io(
+    name="dispatch",
+    meta={"operation": "dispatch"},
+    input_fn=lambda session, msg, ctx: {
+        "work_id": str(session.session_id),
+        "ref_id": str(msg.message_id),
+        "business_id": session.business_id or "",
+        "client_id": session.client_id or ""
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 def dispatch(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
     state = SessionState.model_validate(session.state_json)
 
