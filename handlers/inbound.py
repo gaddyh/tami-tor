@@ -58,7 +58,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     }
 
     result = dispatch(session=session, msg=rawMessage, ctx=ctx)
-
+    session.state_json = result.state.model_dump()
     try:
         for eff in result.effects or []:
             kind = eff.get("kind", "UNKNOWN_EFFECT")
