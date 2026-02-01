@@ -46,7 +46,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     business = load_business_by_id(db, wi.business_id)
 
     ctx = {
-        "is_provider": business.is_provider(from_),
+        "is_provider": business.is_provider(wi.client_id),
         "services": business.services(),
         "timezone": business.timezone,
         "booking_policy_mode": business.booking_policy_mode,
@@ -80,7 +80,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     business_id=session.business_id,
                     wa_id=inbound.phone_number_id,
                     client_id=session.client_id,
-                    to_chat_id=from_,
+                    to_chat_id=wi.client_id,
                     interactive_payload=payload,
                     workflow_id=str(session.session_id),
                 )
@@ -95,7 +95,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     meta={
                         "work_id": str(wi.work_id),
                         "rows": len(eff.get("rows") or []),
-                        "to_chat_id": from_,
+                        "to_chat_id": wi.client_id,
                     },
                 )
 
@@ -112,8 +112,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 session.state_json["data"]["chunked"] = chunked.model_dump()
                 session.state_json["data"]["chunk_index"] = 0
 
-                payload = create_whatsapp_list_message(chunked, from_, 0)
-                send_result = await adapter.send_dynamic_list_message(to_phone=from_, interactive_payload=payload)
+                payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
+                send_result = await adapter.send_dynamic_list_message(to_phone=wi.client_id, interactive_payload=payload)
 
                 emit_event(
                     event="INBOUND_SLOTS_LIST_SENT",
@@ -124,7 +124,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     session_id=str(session.session_id),
                     meta={
                         "work_id": str(wi.work_id),
-                        "to_phone": from_,
+                        "to_phone": wi.client_id,
                         "slots_total": len(items or []),
                         # keep it light; don’t dump full API responses into metadata
                         "send_ok": bool(send_result),
@@ -137,7 +137,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 slot = TimeSlot.model_validate(slot)
                 payload = build_hebrew_slot_confirmation(slot)
                 await adapter.send_action_buttons(
-                    recipient=from_,
+                    recipient=wi.client_id,
                     message=payload,
                 )
 
@@ -150,7 +150,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     session_id=str(session.session_id),
                     meta={
                         "work_id": str(wi.work_id),
-                        "to_phone": from_,
+                        "to_phone": wi.client_id,
                         "state": session.state_json,
                     },
                 )
