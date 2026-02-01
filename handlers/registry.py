@@ -17,7 +17,13 @@ from observability.obs import instrument_io
         "work_id": str(session.session_id),
         "ref_id": str(msg.message_id),
         "business_id": session.business_id or "",
-        "client_id": session.client_id or ""
+        "client_id": session.client_id or "",
+        "flow": session.flow,
+        "step": session.step,
+        "input_type": session.input_type,
+        "expected_type": session.expected_type,
+        "data": session.data,
+        "ctx": ctx,
     },
     output_fn=lambda result: result,
     redact=True

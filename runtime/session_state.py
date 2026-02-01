@@ -12,8 +12,29 @@ from models.session_state import (
     DEFAULT_VERSION,
     InputType
 )
+from observability.obs import instrument_io
 
-
+@instrument_io(
+    name="init_state",
+    meta={"operation": "init_state"},
+    input_fn=lambda session, rawMessage: {
+        "session_id": str(session.session_id),
+        "business_id": session.business_id or "",
+        "client_id": session.client_id or "",
+        "raw_message": rawMessage.model_dump(),
+    },
+    output_fn=lambda state: {
+        "session_id": str(state.session_id),
+        "business_id": state.business_id or "",
+        "client_id": state.client_id or "",
+        "flow": state.flow,
+        "step": state.step,
+        "input_type": state.input_type,
+        "expected_type": state.expected_type,
+        "data": state.data,
+    },
+    redact=True
+)
 def init_state(session: SessionState, rawMessage:RawMessage) -> SessionState:
     
     flow = SessionFlow.CLIENT_CREATE #TODO add flow_pick step or llm for text
