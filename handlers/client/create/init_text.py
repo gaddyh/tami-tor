@@ -5,5 +5,5 @@ from models.session import Session
 from adapters.primitivies import RawMessage
 from typing import Any
 
-def client_show_slots_btn_btn(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+def init_text(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
     return HandlerResult(state=SessionState.model_validate(session.state_json), effects=[])

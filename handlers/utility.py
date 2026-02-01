@@ -1,10 +1,20 @@
 
 from sqlalchemy import select
+from models.inbound_message import InboundMessage
 from models.session import Session as ChatSession
 from sqlalchemy.orm import Session
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from models.business import Service
+from adapters.primitivies import RawMessage
+from handlers.errors import NonRetryableError
+from models.inbound_message import InboundMessage
+from models.session_state import SessionState
+from models.work_item import WorkItem
+from adapters.cloud_api import CloudAPIAdapter
+from models.business import Business
+from runtime.redis_client import enqueue_work
+from runtime.events import emit_event
 
 def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")
@@ -29,9 +39,6 @@ def get_business_id(phone_number_id: str, client_id: str) -> str:
     # This could be a lookup in a phone_number_to_business mapping
     return phone_number_id
 
-from sqlalchemy import select
-from models.business import Business
-
 def load_business_by_wa_id(db, phone_number_id: str) -> Business:
     business = db.execute(
         select(Business)
@@ -44,12 +51,17 @@ def load_business_by_wa_id(db, phone_number_id: str) -> Business:
 
     return business
 
-from datetime import datetime, timezone
+def load_business_by_id(db, business_id: str) -> Business:
+    business = db.execute(
+        select(Business)
+        .where(Business.business_id == business_id)
+        .limit(1)
+    ).scalar_one_or_none()
 
-from sqlalchemy.orm import Session
+    if not business:
+        raise ValueError(f"No business configured for id={business_id}")
 
-from models.work_item import WorkItem
-from runtime.redis_client import enqueue_work
+    return business
 
 def services_list_payload(rows) -> dict:
     return {
@@ -102,6 +114,45 @@ def build_service_rows(services: list[Service]) -> list[dict]:
         for s in services
         if s.is_active
     ]
+
+async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
+    raw = inbound.raw or {}
+    phone_number_id = inbound.phone_number_id
+    from_ = inbound.from_
+    message_id = inbound.message_id
+
+    emit_event(
+        event="INBOUND_ROW_LOADED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+        meta={
+            "work_id": str(wi.work_id),
+            "message_id": message_id,
+            "from": from_,
+            "phone_number_id": phone_number_id,
+        },
+    )
+
+    adapter = CloudAPIAdapter(phone_number_id)
+    rawMessage: RawMessage = await adapter.parse_incoming(raw)
+
+    emit_event(
+        event="INBOUND_PARSED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+        meta={
+            "work_id": str(wi.work_id),
+            "message_id": message_id,
+            "msg_type": rawMessage.content.type,
+        },
+    )
+
+    return rawMessage, adapter
+
 
 def load_or_create_session(
     db: Session,

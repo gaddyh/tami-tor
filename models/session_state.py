@@ -1,12 +1,25 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, TypedDict
+from typing import Any, Optional, TypedDict
+from typing import Literal
 
+from sqlalchemy.sql.coercions import expect
+from pydantic import BaseModel
+from models.availability import ChunkedAvailability, TimeSlot
+
+
+class InputType(str, Enum):
+    AUDIO = "audio"
+    TEXT = "text"
+    BTN_ID = "btn_id"
+    LIST_ID = "list_id"
 
 class SessionFlow(str, Enum):
-    CLIENT_BOOKING = "client_booking"
-    OWNER_APPROVAL = "owner_approval"
+    CLIENT_CREATE = "client_create"
+    CLIENT_UPDATE = "client_update"
+    CLIENT_DELETE = "client_delete" 
+    PROVIDER_APPROVAL = "provider_approval"
 
 
 class SessionStep(str, Enum):
@@ -19,7 +32,23 @@ class SessionStep(str, Enum):
     CANCELLED = "cancelled"
 
 
-DEFAULT_FLOW = SessionFlow.CLIENT_BOOKING
+DEFAULT_FLOW = SessionFlow.CLIENT_CREATE
 DEFAULT_STEP = SessionStep.INIT
 DEFAULT_DATA: dict[str, Any] = {}
 DEFAULT_VERSION = 1
+
+class SessionData(BaseModel):
+    chunked:ChunkedAvailability
+    chunked_index: int
+
+    chosen_slot:TimeSlot
+
+    data: dict[str, Any]
+
+class SessionState(BaseModel):
+    flow: SessionFlow
+    step: SessionStep
+    input_type: InputType
+    expected_type: Optional[InputType]
+    
+    data: Optional[SessionData]

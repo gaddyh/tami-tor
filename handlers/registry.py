@@ -1,13 +1,53 @@
-from typing import NamedTuple, Literal, Optional
+from typing import Callable, Dict, Any, Optional, Tuple
 
-from models.session_state import SessionFlow, SessionStep
+from models.session_state import InputType, SessionFlow, SessionStep, SessionState
+from handlers.client.create.show_slots_btn_text import client_show_slots_btn_text
+from handlers.client.create.show_slots_btn_btn import client_show_slots_btn_btn
+from handlers.client.create.init_text import init_text
+from models.session import Session
 
-class RouteKey(NamedTuple):
-    flow: SessionFlow
-    step: SessionStep
+from adapters.primitivies import RawMessage
+from handlers.models import Effect
 
-from typing import Callable, Dict
+class HandlerResult:
+    state: SessionState
+    effects: list[Effect]
 
-Handler = Callable[[dict], dict]
+
+Handler = Callable[[Session, RawMessage, dict[str, Any]], HandlerResult]
+
+# (flow, step, input_type, expected_type) where expected_type=None means "wildcard"
+RouteKey = Tuple[SessionFlow, SessionStep, InputType, Optional[InputType]]
 
 INBOUND_REGISTRY: Dict[RouteKey, Handler] = {}
+
+
+class NoRouteFound(Exception):
+    pass
+
+
+def dispatch(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+    state = SessionState.model_validate(session.state_json)
+
+    exact_key: RouteKey = (state.flow, state.step, state.input_type, state.expected_type)
+    handler = INBOUND_REGISTRY.get(exact_key)
+
+    # fallback: wildcard expected_type
+    if handler is None:
+        wildcard_key: RouteKey = (state.flow, state.step, state.input_type, None)
+        handler = INBOUND_REGISTRY.get(wildcard_key)
+
+    if handler is None:
+        raise NoRouteFound(f"No handler registered for {exact_key}")
+
+    return handler(session, msg, ctx)
+
+
+INBOUND_REGISTRY[
+    (SessionFlow.CLIENT_CREATE, SessionStep.SLOTS_PICK, InputType.BTN_ID, InputType.BTN_ID)
+] = client_show_slots_btn_btn
+
+# wildcard expected_type for init_text
+INBOUND_REGISTRY[
+    (SessionFlow.CLIENT_CREATE, SessionStep.INIT, InputType.TEXT, None)
+] = init_text

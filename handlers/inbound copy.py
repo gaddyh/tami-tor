@@ -4,8 +4,10 @@ from adapters.primitivies import RawMessage
 from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
-from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound
-from runtime.session_state import init_state
+from adapters.cloud_api import CloudAPIAdapter
+from handlers.utility import load_or_create_session, load_business_by_wa_id, now_israel, services_list_payload
+from runtime.session_state import parse_session_state, dump_session_state
+from reducers.client_reducer import reduce_session
 from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
@@ -14,7 +16,6 @@ from reducers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
-from registry import INBOUND_REGISTRY, dispatch
 
 @instrument_io(
     name="handle_process_inbound",
@@ -32,18 +33,94 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     if wi.kind != "INBOUND":
         raise NonRetryableError(f"handle_process_inbound got wrong kind: {wi.kind}")
 
+    emit_event(
+        event="INBOUND_HANDLER_START",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+        meta={
+            "work_id": str(wi.work_id),
+            "ref_id": str(wi.ref_id),
+        },
+    )
+
     inbound = db.get(InboundMessage, wi.ref_id)
     if not inbound:
         raise NonRetryableError(f"InboundMessage not found for ref_id={wi.ref_id}")
 
-    rawMessage, adapter = ingest_inbound(inbound, wi)
+    raw = inbound.raw or {}
+    phone_number_id = inbound.phone_number_id
+    from_ = inbound.from_
+    message_id = inbound.message_id
 
-    session = load_or_create_session(db, business_id=wi.business_id, client_id=wi.client_id)
+    emit_event(
+        event="INBOUND_ROW_LOADED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+        meta={
+            "work_id": str(wi.work_id),
+            "message_id": message_id,
+            "from": from_,
+            "phone_number_id": phone_number_id,
+        },
+    )
 
-    if not session.state_json:
-        session.state_json = init_state(session, rawMessage)
+    adapter = CloudAPIAdapter(phone_number_id)
+    rawMessage: RawMessage = await adapter.parse_incoming(raw)
 
-    business = load_business_by_id(db, wi.business_id)
+    emit_event(
+        event="INBOUND_PARSED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+        meta={
+            "work_id": str(wi.work_id),
+            "message_id": message_id,
+            "msg_type": getattr(rawMessage, "type", None) or rawMessage.__class__.__name__,
+        },
+    )
+
+    session = load_or_create_session(
+        db,
+        business_id=wi.business_id,
+        client_id=wi.client_id,
+    )
+
+    emit_event(
+        event="INBOUND_SESSION_LOADED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=session.business_id,
+        client_id=session.client_id,
+        session_id=str(session.session_id),
+        meta={
+            "work_id": str(wi.work_id),
+            "state": session.state_json,
+        },
+    )
+
+    flow, step, data = parse_session_state(session.state_json)
+
+    if not isinstance(session.state_json, dict) or not session.state_json:
+        session.state_json = dump_session_state(flow, step, data)
+        emit_event(
+            event="INBOUND_SESSION_STATE_BOOTSTRAPPED",
+            inbound_id=str(wi.ref_id),
+            type="INBOUND",
+            business_id=session.business_id,
+            client_id=session.client_id,
+            session_id=str(session.session_id),
+            meta={
+                "work_id": str(wi.work_id),
+                "state": session.state_json,
+            },
+        )
+
+    business = load_business_by_wa_id(db, inbound.phone_number_id)
 
     ctx = {
         "is_provider": business.is_provider(from_),
@@ -53,7 +130,24 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         "default_provider_id": business.get_default_provider_id(),
     }
 
-    result = dispatch(session=session, msg=rawMessage, ctx=ctx)
+    result = reduce_session(flow=flow, step=step, data=data, msg=rawMessage, ctx=ctx)
+    session.state_json = dump_session_state(result.flow, result.step, result.data)
+
+    emit_event(
+        event="INBOUND_REDUCED",
+        inbound_id=str(wi.ref_id),
+        type="INBOUND",
+        business_id=session.business_id,
+        client_id=session.client_id,
+        session_id=str(session.session_id),
+        meta={
+            "work_id": str(wi.work_id),
+            "flow": result.flow.value,
+            "step": result.step.value,
+            "effects_count": len(result.effects or []),
+            "state": session.state_json,
+        },
+    )
 
     try:
         for eff in result.effects or []:

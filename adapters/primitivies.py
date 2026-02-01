@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Literal, Optional, Any
 from pydantic import BaseModel
 
 @dataclass
@@ -73,9 +73,11 @@ class LocationInfo:
     name: Optional[str] = None
     address: Optional[str] = None
 
+ContentType = Literal["text", "image", "video", "audio", "document", "interactive", "contacts", "sticker", "location", "button"] #button in use?
+
 @dataclass
 class ContentInfo:
-    type: str
+    type: ContentType
     text: Optional[str] = None
     media: Optional[MediaInfo] = None
     location: Optional[LocationInfo] = None
