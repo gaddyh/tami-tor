@@ -116,6 +116,13 @@ def build_service_rows(services: list[Service]) -> list[dict]:
         if s.is_active
     ]
 
+def output_fn(result, _):
+    rawMessage, adapter = result
+    return {
+        "msg": rawMessage.model_dump(),
+        "adapter": adapter.phone_number_id,
+    }
+
 
 @instrument_io(
     name="ingest_inbound",
@@ -129,7 +136,7 @@ def build_service_rows(services: list[Service]) -> list[dict]:
         "from_": inbound.from_ or "",
         "message_id": inbound.message_id or "",
     },
-    output_fn=lambda rawMessage, adapter: {"msg": rawMessage.model_dump(), "adapter": adapter.phone_number_id},
+    output_fn=output_fn,
     redact=True
 )
 async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
