@@ -6,4 +6,5 @@ from adapters.primitivies import RawMessage
 from typing import Any
 
 def client_show_slots_btn_btn(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+    print("client_show_slots_btn_btn ", session.state_json)
     return HandlerResult(state=SessionState.model_validate(session.state_json), effects=[])
