@@ -50,5 +50,5 @@ INBOUND_REGISTRY[
 ] = client_show_slots_list_list
 
 INBOUND_REGISTRY[
-    (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.CONFIRM, InputType.TEXT, InputType.TEXT)
+    (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.CONFIRM, InputType.BTN_ID, InputType.BTN_ID)
 ] = client_confirm_btn_btn
