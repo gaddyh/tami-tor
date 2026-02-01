@@ -1,6 +1,6 @@
 
 from models.session_state import SessionState
-from handlers.registry import HandlerResult
+from handlers.models import HandlerResult
 from models.session import Session
 from adapters.primitivies import RawMessage
 from typing import Any
