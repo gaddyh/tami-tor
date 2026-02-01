@@ -25,7 +25,7 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
     res: ListResponse = handle_list_response(list_id, state.data.chunked)
     match res:
         case NavigationResponse():
-            state.chunked_index = res.chunk_index
+            state.data.chunked_index = res.chunk_index
             state.step = SessionStep.SLOTS_PICK
             state.error_message = None
             effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": []})
@@ -33,7 +33,7 @@ def client_show_slots_list_list(state: SessionState, msg: RawMessage, ctx: dict[
 
         case SlotSelectionResponse():
             slot: TimeSlot = res.slot
-            state.chosen_slot = slot
+            state.data.chosen_slot = slot
             state.step = SessionStep.CONFIRM
             state.error_message = None
             effects.append({"kind": "SEND_CONFIRM_BUTTONS", "to": "client", "rows": []})
