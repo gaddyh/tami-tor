@@ -38,25 +38,22 @@ class SessionStep(str, Enum):
 
 DEFAULT_FLOW = SessionFlow.CLIENT_CREATE
 DEFAULT_STEP = SessionStep.INIT
-DEFAULT_DATA: dict[str, Any] = {}
 DEFAULT_VERSION = 1
 
 class SessionData(BaseModel):
-    service_id: Optional[str]
-    service_name: Optional[str]
-    duration: Optional[int]
-    chunked:Optional[ChunkedAvailability]
-    chunked_index: Optional[int]
+    service_id: Optional[str] = None
+    service_name: Optional[str] = None
+    duration: Optional[int] = None
+    chunked:Optional[ChunkedAvailability] = None
+    chunked_index: Optional[int] = None
 
-    chosen_slot:Optional[TimeSlot]
-
-    data: dict[str, Any]
+    chosen_slot:Optional[TimeSlot] = None
 
 class SessionState(BaseModel):
     actor: Actor
     flow: SessionFlow
     step: SessionStep
     input_type: InputType
-    expected_type: Optional[InputType]
+    expected_type: Optional[InputType] = None
     
-    data: Optional[SessionData]
+    data: Optional[SessionData] = None
