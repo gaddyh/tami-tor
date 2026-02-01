@@ -178,7 +178,20 @@ async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
 
     return (rawMessage, adapter)
 
-
+@instrument_io(
+    name="load_or_create_session",
+    meta={"operation": "load_or_create_session"},
+    input_fn=lambda db, business_id, client_id: {
+        "business_id": business_id,
+        "client_id": client_id,
+    },
+    output_fn=lambda session: {
+        "session_id": str(session.session_id),
+        "business_id": session.business_id,
+        "client_id": session.client_id,
+    },
+    redact=True
+)
 def load_or_create_session(
     db: Session,
     *,
