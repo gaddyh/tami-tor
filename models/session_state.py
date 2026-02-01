@@ -42,6 +42,9 @@ DEFAULT_DATA: dict[str, Any] = {}
 DEFAULT_VERSION = 1
 
 class SessionData(BaseModel):
+    service_id: str
+    service_name: str
+    duration: int
     chunked:ChunkedAvailability
     chunked_index: int
 

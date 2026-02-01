@@ -87,6 +87,9 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     to_chat_id=wi.client_id,
                     interactive_payload=payload,
                     workflow_id=str(session.session_id),
+                    send_at=now_israel(),
+                    to_name="client_name",
+                    idempotency_key=wi.work_id,
                 )
 
                 emit_event(
