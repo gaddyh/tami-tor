@@ -25,9 +25,9 @@ def client_confirm_btn_btn(state: SessionState, msg: RawMessage, ctx: dict[str, 
     if btn_id and btn_id.endswith("_confirm"):
         # On confirm: finish client flow + trigger owner flow
         state.step = SessionStep.DONE
-        effects.append({"kind": "CREATE_EVENT", "to": "", "text": ""})
+        effects.append({"kind": "CREATE_EVENT", "to": "api"})
         effects.append({"kind": "SEND_CONFIRMATION", "to": "client", "text": "התור נקבע בהצלחה."})
-        effects.append({"kind": "SEND_CONFIRMATION", "to": "owner", "payload": {"summary": state.data}})
+        effects.append({"kind": "SEND_CONFIRMATION", "to": "owner"})
         return HandlerResult(state=state, effects=effects)
     
     return HandlerResult(state=state, effects=effects)

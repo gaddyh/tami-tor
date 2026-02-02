@@ -48,7 +48,7 @@ class EnqueueOwnerApprovalEffect(TypedDict):
 
 class Effect(TypedDict):
     kind: str  
-    to: Optional[Literal["client", "owner"]] = None
+    to: Literal["client", "owner", "api"]
     text: Optional[str] = None
     payload: Optional[dict[str, Any]] = None
 
