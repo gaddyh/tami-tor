@@ -50,7 +50,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
         session.state_json = state.model_dump()
     else:
-        state = SessionState.model_validate_json(session.state_json)
+        state = SessionState.model_validate(session.state_json)
 
     ctx = {
         "is_provider": is_provider,
