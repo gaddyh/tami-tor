@@ -16,6 +16,8 @@ from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
 from handlers.registry import dispatch
+from models.calendar_event import EventItem
+from tools.event_booking import create_event
 
 @instrument_io(
     name="handle_process_inbound",
@@ -62,6 +64,13 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     try:
         for eff in result.effects or []:
             kind = eff.get("kind", "UNKNOWN_EFFECT")
+            service_id = session.state_json["data"]["service_id"]
+            service_name = session.state_json["data"]["service_name"]
+            client_name = session.state_json["data"]["client_name"]
+            duration = session.state_json["data"]["duration"]
+            chosen_slot = session.state_json["data"]["chosen_slot"]
+            chosen_start = chosen_slot["start_time"]
+            chosen_end = chosen_slot["end_time"]
 
             emit_event(
                 event="INBOUND_EFFECT_EMITTED",
@@ -162,25 +171,32 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     },
                 )
 
-            if kind == "SEND_WAITING_OWNER_APPROVAL_NOTIFICATION" and eff.get("to") == "client":
-                await adapter.send_message(
-                    recipient=wi.client_id,
-                    message=eff.get("text", ""),
+            if kind == "CREATE_EVENT":
+                participants = []
+                notify = False
+                tz = business.timezone
+                event = EventItem(
+                    item_id=None,
+                    command="create",
+                    title=service_name + " - " + client_name,
+                    description=None,
+                    datetime=chosen_start,
+                    date=None,
+                    end_datetime=chosen_end,
+                    location="",
+                    participants=participants,
+                    recurrence=None,
+                    reminders=[],
+                    allow_conflicts=False,
+                    notify=notify,
+                    timezone=tz,
                 )
+                res = await create_event(user_id=business.get_default_provider_id(), event=event)
 
-            if kind == "ENQUEUE_OWNER_APPROVAL" and eff.get("to") == "owner":
-                slot = session.state_json["data"]["chosen_slot"]
-                slot = TimeSlot.model_validate(slot)
-                date_str, time_str = format_date_time_for_template(
-                        slot.start,
-                        business.timezone
-                    )
-                await adapter.send_booking_approval_template(
-                        to_phone=business.get_default_provider_id(),
-                        client_name=session.state_json["data"]["client_name"],
-                        service_name=session.state_json["data"]["service_name"],
-                        date_str=date_str,
-                        time_str=time_str,
+            if kind == "SEND_CONFIRMATION" and eff.get("to") == "client":
+                res = await adapter.send_message(
+                        to_phone=wi.client_id,
+                        message=eff.get("text", ""),
                     )
 
         emit_event(
