@@ -201,7 +201,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     )
 
         if state.step == SessionStep.DONE:
-            session.state_json = {}
+            debug = session.state_json
+            session.state_json = "{}"
 
         emit_event(
             event="INBOUND_HANDLER_DONE",
@@ -216,7 +217,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
             },
         )
 
-        return session.state_json  # for observability
+        return session.state_json or debug  # for observability
 
     except Exception as e:
         emit_event(
