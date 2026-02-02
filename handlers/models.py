@@ -46,14 +46,14 @@ class EnqueueOwnerApprovalEffect(TypedDict):
     # keep it minimal: reducer emits *intent*, handler fills DB ids
     payload: dict[str, Any]
 
-from typing_extensions import TypedDict, NotRequired
+from pydantic import BaseModel, Field
 from typing import Any, Literal
 
-class Effect(TypedDict):
-    kind: str
+class Effect(BaseModel):
+    kind: str  
     to: Literal["client", "owner", "api"]
-    text: NotRequired[str]
-    payload: NotRequired[dict[str, Any]]
+    text: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class HandlerResult(BaseModel):
