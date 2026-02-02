@@ -29,4 +29,5 @@ def client_confirm_btn_btn(state: SessionState, msg: RawMessage, ctx: dict[str, 
         effects.append({"kind": "SEND_CONFIRMATION", "to": "client", "text": "התור נקבע בהצלחה."})
         effects.append({"kind": "SEND_CONFIRMATION", "to": "owner", "payload": {"summary": state.data}})
         return HandlerResult(state=state, effects=effects)
+    
     return HandlerResult(state=state, effects=effects)

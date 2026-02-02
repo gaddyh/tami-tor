@@ -46,7 +46,7 @@ class EnqueueOwnerApprovalEffect(TypedDict):
     # keep it minimal: reducer emits *intent*, handler fills DB ids
     payload: dict[str, Any]
 
-Effect = Union[SendTextEffect, EnqueueOwnerApprovalEffect, SendConfirmButtonsEffect, SendServiceListEffect, SendSlotsListEffect]
+Effect = Union[SendTextEffect, EnqueueOwnerApprovalEffect, SendConfirmButtonsEffect, SendServiceListEffect, SendSlotsListEffect | Any]
 
 @dataclass(frozen=True)
 class ReduceResult:
