@@ -121,12 +121,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 )
 
             if kind == "SEND_SLOTS_LIST" and eff.get("to") == "client":
-                now = now_israel()
+                bootstrap_start_dt = state.data.bootstrap_start_dt
+                bootstrap_end_dt = state.data.bootstrap_end_dt
+                now = bootstrap_start_dt or now_israel()
+                end_date = bootstrap_end_dt or (now + timedelta(days=4))
                 items = get_available_slots(
                     user_id=business.get_default_provider_id(),
                     timezone=business.timezone,
                     start_date=now.isoformat(),
-                    end_date=(now + timedelta(days=4)).isoformat(),
+                    end_date=end_date.isoformat(),
                     duration=state.data.duration,
                 )
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)

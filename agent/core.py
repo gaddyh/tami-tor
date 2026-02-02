@@ -8,10 +8,11 @@ from runtime.events import now_israel
 from models.business import Service
 
 load_dotenv(".venv/.env")
+from zoneinfo import ZoneInfo
+from typing import Optional
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI()
-
 
 class CalendarEventBootstrap(BaseModel):
     service_name: str | None
@@ -38,6 +39,46 @@ class CalendarEventBootstrap(BaseModel):
     def has_service_name(self) -> bool:
         return self.service_name is not None
 
+    def to_datetimes(self, timezone: str):
+        return build_event_datetimes_with_day_bounds(self, timezone)
+
+from datetime import datetime, time
+
+def build_event_datetimes_with_day_bounds(
+    bootstrap: CalendarEventBootstrap,
+    timezone: str,
+) -> tuple[Optional[datetime], Optional[datetime]]:
+    tz = ZoneInfo(timezone)
+
+    if not bootstrap.start_date:
+        return None, None
+
+    start_date = datetime.fromisoformat(bootstrap.start_date).date()
+    end_date = (
+        datetime.fromisoformat(bootstrap.end_date).date()
+        if bootstrap.end_date
+        else start_date
+    )
+
+    start_t = (
+        time.fromisoformat(bootstrap.start_time)
+        if bootstrap.start_time
+        else time(0, 0)
+    )
+    end_t = (
+        time.fromisoformat(bootstrap.end_time)
+        if bootstrap.end_time
+        else time(23, 59)
+    )
+
+    start_dt = datetime.combine(start_date, start_t, tzinfo=tz)
+    end_dt = datetime.combine(end_date, end_t, tzinfo=tz)
+
+    if end_dt < start_dt:
+        raise ValueError("end_datetime cannot be before start_datetime")
+
+    return start_dt, end_dt
+
 
 def get_llm_bootstrap(user_input: str, services: list[Service]):
     system_prompt = build_system_prompt(
@@ -62,8 +103,11 @@ import time
 
 if __name__ == "__main__":
     start = time.perf_counter()
-
-    res = get_llm_bootstrap("יש פדיקור שבוע הבא אחה״צ?")
+    services = [
+        Service(id="1", name="פדיקור", duration_min=60, price=100),
+        Service(id="2", name="פודיקור", duration_min=60, price=100),
+    ]
+    res = get_llm_bootstrap("יש פדיקור שבוע הבא אחה״צ?", services)
 
     elapsed_ms = (time.perf_counter() - start)
 
