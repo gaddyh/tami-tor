@@ -19,6 +19,7 @@ from handlers.registry import dispatch, wa_phone_id_registry
 from models.calendar_event import EventItem
 from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
+from db.persist_event import persist_event_item, update_event_item
 
 @instrument_io(
     name="handle_process_inbound",
@@ -185,8 +186,21 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     allow_conflicts=False,
                     notify=notify,
                     timezone=tz,
-                )
-                res = create_event(user_id=business.get_default_provider_id(), event=event)
+                ) 
+                user_id = business.get_default_provider_id()
+                persist_event_item(user_id=user_id, event=event)
+                res = create_event(user_id=user_id, event=event)
+                if res.get("ok"):
+                    event_id = res.get("item_id")
+                    update_event_item(user_id=user_id, event=event, event_id=event_id)
+                elif res.get("conflicts"):
+                    conflicts = res.get("conflicts")
+                else:
+                    raise Exception("Failed to create event")
+
+
+
+
 
             if kind == "SEND_CONFIRMATION" and eff.get("to") == "client":
                 res = await adapter.send_message(
