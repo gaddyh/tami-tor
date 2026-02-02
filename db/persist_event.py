@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from db.session import SessionLocal
 from models.calendar_event import EventItem as EventRow  # SQLAlchemy model
 
-
 def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     if value is None:
         return None
@@ -139,16 +138,7 @@ def persist_event_item(
 
             raise
 
-from __future__ import annotations
 
-from datetime import datetime, date
-from typing import Optional, Any
-import uuid as uuid_lib
-
-from sqlalchemy.exc import IntegrityError
-
-from db.session import SessionLocal
-from models.event_item import EventItem as EventRow  # SQLAlchemy model
 
 
 def update_event_item(
