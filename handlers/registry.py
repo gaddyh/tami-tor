@@ -14,20 +14,14 @@ from observability.obs import instrument_io
 @instrument_io(
     name="dispatch",
     meta={"operation": "dispatch"},
-    input_fn=lambda session, msg, ctx: {
-        "work_id": str(session.session_id),
-        "business_id": session.business_id or "",
-        "client_id": session.client_id or "",
-        "flow": session.state_json["flow"],
-        "step": session.state_json["step"],
+    input_fn=lambda state, msg, ctx: {
+        "state": state,
         "ctx": ctx,
     },
     output_fn=lambda result: result,
     redact=True
 )
-def dispatch(session: Session, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
-    state = SessionState.model_validate(session.state_json)
-
+def dispatch(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
     exact_key: RouteKey = (state.actor, state.flow, state.step, state.input_type, state.expected_type)
     handler = INBOUND_REGISTRY.get(exact_key)
 

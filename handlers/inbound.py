@@ -5,7 +5,7 @@ from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound, format_date_time_for_template
-from runtime.session_state import init_state
+from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType
 from models.session_state import Actor
 from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
@@ -49,7 +49,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     if not session.state_json:
         state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
         session.state_json = state.model_dump()
-
+    else:
+        state = SessionState.model_validate_json(session.state_json)
 
     ctx = {
         "is_provider": is_provider,
@@ -59,7 +60,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         "default_provider_id": business.get_default_provider_id(),
     }
 
-    result = dispatch(session=session, msg=rawMessage, ctx=ctx)
+    result = dispatch(state=state, msg=rawMessage, ctx=ctx)
     session.state_json = result.state.model_dump()
     try:
         for eff in result.effects or []:
@@ -198,6 +199,9 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         to_phone=wi.client_id,
                         message=eff.get("text", ""),
                     )
+
+        if state.step == SessionStep.DONE:
+            session.state_json = {}
 
         emit_event(
             event="INBOUND_HANDLER_DONE",
