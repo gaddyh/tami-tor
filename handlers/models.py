@@ -46,11 +46,15 @@ class EnqueueOwnerApprovalEffect(TypedDict):
     # keep it minimal: reducer emits *intent*, handler fills DB ids
     payload: dict[str, Any]
 
+from typing_extensions import TypedDict, NotRequired
+from typing import Any, Literal
+
 class Effect(TypedDict):
-    kind: str  
+    kind: str
     to: Literal["client", "owner", "api"]
-    text: str = ""
-    payload: dict[str, Any] = {}
+    text: NotRequired[str]
+    payload: NotRequired[dict[str, Any]]
+
 
 class HandlerResult(BaseModel):
     state: SessionState
