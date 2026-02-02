@@ -192,7 +192,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     notify=notify,
                     timezone=tz,
                 )
-                res = await create_event(user_id=business.get_default_provider_id(), event=event)
+                res = create_event(user_id=business.get_default_provider_id(), event=event)
 
             if kind == "SEND_CONFIRMATION" and eff.get("to") == "client":
                 res = await adapter.send_message(
