@@ -41,6 +41,7 @@ DEFAULT_STEP = SessionStep.INIT
 DEFAULT_VERSION = 1
 
 class SessionData(BaseModel):
+    client_name: Optional[str] = None
     service_id: Optional[str] = None
     service_name: Optional[str] = None
     duration: Optional[int] = None

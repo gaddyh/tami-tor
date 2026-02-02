@@ -26,6 +26,6 @@ def client_confirm_btn_btn(state: SessionState, msg: RawMessage, ctx: dict[str, 
         # On confirm: finish client flow + trigger owner flow
         state.step = SessionStep.DONE
         effects.append({"kind": "SEND_WAITING_OWNER_APPROVAL_NOTIFICATION", "to": "client", "text": "תודה רבה. בקשת התור נשלחה לאישור."})
-        effects.append({"kind": "ENQUEUE_OWNER_APPROVAL", "payload": {"summary": state.data}})
+        effects.append({"kind": "ENQUEUE_OWNER_APPROVAL", "to": "owner", "payload": {"summary": state.data}})
         return HandlerResult(state=state, effects=effects)
     return HandlerResult(state=state, effects=effects)

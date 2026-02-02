@@ -4,7 +4,7 @@ from adapters.primitivies import RawMessage
 from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
-from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound
+from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound, format_date_time_for_template
 from runtime.session_state import init_state
 from models.session_state import Actor
 from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
@@ -167,6 +167,21 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     recipient=wi.client_id,
                     message=eff.get("text", ""),
                 )
+
+            if kind == "ENQUEUE_OWNER_APPROVAL" and eff.get("to") == "owner":
+                slot = session.state_json["data"]["chosen_slot"]
+                slot = TimeSlot.model_validate(slot)
+                date_str, time_str = format_date_time_for_template(
+                        slot.start,
+                        business.timezone
+                    )
+                await adapter.send_booking_approval_template(
+                        to_phone=business.get_default_provider_id(),
+                        client_name=session.state_json["data"]["client_name"],
+                        service_name=session.state_json["data"]["service_name"],
+                        date_str=date_str,
+                        time_str=time_str,
+                    )
 
         emit_event(
             event="INBOUND_HANDLER_DONE",

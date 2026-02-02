@@ -21,6 +21,31 @@ def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")
     return datetime.now(tz)
 
+def parse_datetime(value: str) -> datetime:
+    """Parse an ISO-8601 string. Supports trailing 'Z'. Returns a datetime; no timezone normalization here."""
+    s = value.strip()
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    return datetime.fromisoformat(s)
+    
+def format_date_time_for_template(chosen_start, tz: str):
+    # Parse to datetime
+    if isinstance(chosen_start, str):
+        dt = parse_datetime(chosen_start)
+    else:
+        dt = chosen_start
+
+    # Convert to business timezone
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo(tz))
+    else:
+        dt = dt.astimezone(ZoneInfo(tz))
+
+    date_str = dt.strftime("%d/%m/%Y")   # "12/03/2025"
+    time_str = dt.strftime("%H:%M")      # "14:30"
+
+    return date_str, time_str
+
 def get_btn_reply_id(msg) -> str | None:
     # adjust to your RawMessage shape
     c = getattr(msg, "content", None)
@@ -223,6 +248,7 @@ def load_or_create_session(
     db.flush()  # assigns session.session_id
 
     return session
+
 
 if __name__ == "__main__":
     print(now_israel())

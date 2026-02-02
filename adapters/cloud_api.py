@@ -204,6 +204,73 @@ class CloudAPIAdapter():
 
 
     @instrument_io(
+            name="send_booking_approval_template",
+            meta={"operation": "send_booking_approval_template"},
+            input_fn=lambda self, to_phone, client_name, service_name, date_str, time_str: {
+                "to_phone": to_phone,
+                "client_name": client_name,
+                "service_name": service_name,
+                "date_str": date_str,
+                "time_str": time_str,
+            },
+            output_fn=lambda result: result,
+            redact=True
+        )
+    async def send_booking_approval_template(
+            self,
+            to_phone: str,
+            client_name: str,
+            service_name: str,
+            date_str: str,
+            time_str: str,
+            template_name: str = "new_appointment_request",  # <-- your Meta template name
+            language_code: str = "he",
+            reply_to: str | None = None,
+        ) -> dict:
+            url = f"https://graph.facebook.com/v16.0/{self.phone_number_id}/messages"
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": to_phone.replace("@c.us", ""),
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": language_code},
+                    "components": [
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {"type": "text", "text": client_name},   # {{1}}
+                                {"type": "text", "text": service_name},  # {{2}}
+                                {"type": "text", "text": date_str},      # {{3}}
+                                {"type": "text", "text": time_str},      # {{4}}
+                            ],
+                        }
+                    ],
+                },
+            }
+
+            if reply_to:
+                payload["context"] = {"message_id": reply_to}
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(url, headers=headers, json=payload)
+
+            data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {"raw": r.text}
+            if r.status_code >= 400:
+                logger.error("❌ Cloud API error %s: %s", r.status_code, data)
+                return {"status": "failed", "error": data}
+
+            return {"status": "sent", "response": data}
+
+
+
+
+    @instrument_io(
         name="send_dynamic_list_message",
         meta={"operation": "send_dynamic_list_message"},
         input_fn=lambda self, to_phone, interactive_payload: {
