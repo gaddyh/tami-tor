@@ -5,7 +5,7 @@ from handlers.errors import NonRetryableError
 from models.inbound_message import InboundMessage
 from models.work_item import WorkItem
 from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound, format_date_time_for_template
-from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType
+from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
 from models.session_state import Actor
 from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
@@ -59,6 +59,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         "booking_policy_mode": business.booking_policy_mode,
         "default_provider_id": business.get_default_provider_id(),
     }
+
+    state.input_type = get_type(rawMessage)
 
     result = dispatch(state=state, msg=rawMessage, ctx=ctx)
     session.state_json = result.state.model_dump()

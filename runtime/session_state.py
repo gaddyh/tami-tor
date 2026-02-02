@@ -16,6 +16,22 @@ from models.session_state import (
 )
 from observability.obs import instrument_io
 
+
+
+def get_type(rawMessage: RawMessage) -> InputType:
+    type = rawMessage.content.type if rawMessage.content.type in ["text", "audio", "interactive", "contacts", "button"] else "unsupported"
+
+    if type == "text":
+        type = InputType.TEXT
+    elif type == "audio":
+        type = InputType.AUDIO
+    elif type == "interactive":
+        if rawMessage.content.button_reply:
+            type = InputType.BTN_ID
+        elif rawMessage.content.list_reply:
+            type = InputType.LIST_ID
+
+
 @instrument_io(
     name="init_state",
     meta={"operation": "init_state"},
@@ -33,18 +49,8 @@ def init_state(rawMessage:RawMessage, actor:Actor) -> SessionState:
     flow = SessionFlow.CLIENT_CREATE #TODO add flow_pick step or llm for text
     step = SessionStep.INIT
 
-    type = rawMessage.content.type if rawMessage.content.type in ["text", "audio", "interactive", "contacts", "button"] else "unsupported"
+    type = get_type(rawMessage)
 
-    if type == "text":
-        type = InputType.TEXT
-    elif type == "audio":
-        type = InputType.AUDIO
-    elif type == "interactive":
-        if rawMessage.content.button_reply:
-            type = InputType.BTN_ID
-        elif rawMessage.content.list_reply:
-            type = InputType.LIST_ID
-    
     return SessionState(
         actor=Actor.CLIENT, #TODO change to actor after debugging
         flow=flow,

@@ -47,7 +47,6 @@ def client_show_services_list_list(state: SessionState, msg: RawMessage, ctx: di
     state.data.duration = getattr(service, "duration_min", None)
 
     state.step = SessionStep.SLOTS_PICK
-    state.input_type = InputType.LIST_ID
     state.expected_type = InputType.LIST_ID
     effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
     return HandlerResult(state=state, effects=effects)

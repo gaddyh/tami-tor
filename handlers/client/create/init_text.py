@@ -28,7 +28,6 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
     print("bootstrap", state.data.bootstrap)
     if state.data.bootstrap.is_empty():
         state.step = SessionStep.SERVICE_PICK
-        state.input_type = InputType.LIST_ID
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})
 
@@ -49,13 +48,11 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         state.data.duration = getattr(service, "duration_min", None)
 
         state.step = SessionStep.SLOTS_PICK
-        state.input_type = InputType.LIST_ID
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
 
     if state.data.bootstrap.has_any_date_or_time():
         state.step = SessionStep.SLOTS_PICK
-        state.input_type = InputType.LIST_ID
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_AVAILABILITY", "to": "client", "chunked": state.data.bootstrap})
     
