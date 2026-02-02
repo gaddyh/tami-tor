@@ -70,8 +70,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
             client_name = session.state_json["data"]["client_name"]
             duration = session.state_json["data"]["duration"]
             chosen_slot = session.state_json["data"]["chosen_slot"]
-            chosen_start = chosen_slot["start_time"]
-            chosen_end = chosen_slot["end_time"]
+            chosen_start = chosen_slot["start"]
+            chosen_end = chosen_slot["end"]
 
             emit_event(
                 event="INBOUND_EFFECT_EMITTED",
@@ -179,7 +179,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 event = EventItem(
                     item_id=None,
                     command="create",
-                    title=service_name + " - " + (client_name or ""),
+                    title=service_name + " - " + (client_name or "") + " - " + (wi.client_id or ""),
                     description=None,
                     datetime=chosen_start,
                     date=None,
