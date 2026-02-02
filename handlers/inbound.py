@@ -129,7 +129,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 )
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
                 state.data.chunked = chunked.model_dump()
-                state.data.chunk_index = 0
+                state.data.chunked_index = 0
 
                 payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
                 send_result = await adapter.send_dynamic_list_message(to_phone=wi.client_id, interactive_payload=payload)
