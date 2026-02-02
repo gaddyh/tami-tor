@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
 from models.calendar_event import EventItem as EventRow  # SQLAlchemy model
+import uuid as uuid_lib
 
 def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     if value is None:
@@ -144,26 +145,26 @@ def persist_event_item(
 def update_event_item(
     *,
     user_id: str,
-    event,  # your Pydantic EventItem
+    event: EventRow,  # your Pydantic EventItem
     gcal_event_id: Optional[str] = None,
     raw: Optional[dict] = None,
 ) -> str:
     """
     Update an existing event_items row (single table) using a Pydantic EventItem.
 
-    - event.item_id must be the DB UUID (string).
+    - event.id must be the DB UUID (string).
     - Only fields that are not None on the Pydantic object are applied.
     - gcal_event_id can be passed explicitly (common after sync with Google).
     """
     if not user_id:
         raise ValueError("user_id is required")
-    if not event.item_id:
-        raise ValueError("event.item_id is required for update")
+    if not event.id:
+        raise ValueError("event.id is required for update")
 
     try:
-        event_uuid = uuid_lib.UUID(str(event.item_id))
+        event_uuid = uuid_lib.UUID(str(event.id))
     except ValueError as e:
-        raise ValueError("event.item_id must be a UUID string") from e
+        raise ValueError("event.id must be a UUID string") from e
 
     with SessionLocal() as db:
         row: EventRow | None = (
