@@ -1,5 +1,6 @@
 from openai import OpenAI
 from pydantic import BaseModel
+import os
 from dotenv import load_dotenv
 
 from agent.init_text import build_system_prompt
@@ -7,6 +8,8 @@ from runtime.events import now_israel
 from models.business import Service
 
 load_dotenv(".venv/.env")
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI()
 
 
