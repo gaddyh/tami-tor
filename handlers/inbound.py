@@ -196,7 +196,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
             if kind == "SEND_CONFIRMATION" and eff.get("to") == "client":
                 res = await adapter.send_message(
-                        to_phone=wi.client_id,
+                        recipient=wi.client_id,
                         message=eff.get("text", ""),
                     )
 

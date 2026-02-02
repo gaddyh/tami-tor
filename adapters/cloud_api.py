@@ -168,9 +168,9 @@ class CloudAPIAdapter():
     @instrument_io(
             name="send_message",
             meta={"operation": "send_message"},
-            input_fn=lambda self, to_phone, interactive_payload: {
-                "to_phone": to_phone,
-                "interactive_payload": interactive_payload,
+            input_fn=lambda self, recipient, message: {
+                "recipient": recipient,
+                "message": message,
             },
             output_fn=lambda result: result,
             redact=True
