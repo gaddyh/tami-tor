@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import list
+from typing import List
 
 from models.business import Service
 
@@ -7,7 +7,7 @@ from models.business import Service
 def build_system_prompt(
     current_datetime: datetime,
     timezone: str,
-    services: list[Service],
+    services: List[Service],
 ) -> str:
     current_date = current_datetime.date()
 
