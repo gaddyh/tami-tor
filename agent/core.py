@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from agent.init_text import build_system_prompt
 from runtime.events import now_israel
+from models.business import Service
 
 load_dotenv(".venv/.env")
 client = OpenAI()
@@ -35,10 +36,11 @@ class CalendarEventBootstrap(BaseModel):
         return self.service_name is not None
 
 
-def get_llm_bootstrap(user_input: str):
+def get_llm_bootstrap(user_input: str, services: list[Service]):
     system_prompt = build_system_prompt(
         current_datetime=now_israel(),
         timezone="Asia/Jerusalem",
+        services=services,
     )
 
     response = client.responses.parse(

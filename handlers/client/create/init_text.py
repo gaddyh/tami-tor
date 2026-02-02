@@ -24,7 +24,7 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         effects.append({"kind": "SEND_TEXT", "to": "client", "text": "אין שירותים זמינים כרגע."})
         return HandlerResult(state=state, effects=effects)
 
-    state.bootstrap = get_llm_bootstrap(msg.content.text)
+    state.bootstrap = get_llm_bootstrap(msg.content.text, services)
     if state.bootstrap.is_empty():
         state.step = SessionStep.SERVICE_PICK
         state.input_type = InputType.LIST_ID

@@ -1,10 +1,20 @@
 from datetime import datetime, timedelta
+from typing import list
+
+from models.business import Service
 
 
-def build_system_prompt(current_datetime: datetime, timezone: str) -> str:
+def build_system_prompt(
+    current_datetime: datetime,
+    timezone: str,
+    services: list[Service],
+) -> str:
     current_date = current_datetime.date()
 
-    # Hebrew weekday names (Python: Monday=0 ... Sunday=6)
+    active_services = [s for s in services if s.is_active]
+    service_names = [s.name for s in active_services]
+
+    # Hebrew weekday names (Monday=0 ... Sunday=6)
     heb_weekdays = [
         "יום שני",
         "יום שלישי",
@@ -18,22 +28,19 @@ def build_system_prompt(current_datetime: datetime, timezone: str) -> str:
     def day_name(d):
         return heb_weekdays[d.weekday()]
 
-    # Next 7 days
     d1 = current_date + timedelta(days=1)
     d2 = current_date + timedelta(days=2)
-    d3 = current_date + timedelta(days=3)
-    d4 = current_date + timedelta(days=4)
-    d5 = current_date + timedelta(days=5)
-    d6 = current_date + timedelta(days=6)
     d7 = current_date + timedelta(days=7)
 
-    # Define "שבוע הבא" as next calendar week (Sunday–Saturday)
+    # Next calendar week (Sunday–Saturday)
     days_until_next_sunday = (6 - current_date.weekday()) % 7
     if days_until_next_sunday == 0:
         days_until_next_sunday = 7
 
     next_week_start = current_date + timedelta(days=days_until_next_sunday)
     next_week_end = next_week_start + timedelta(days=6)
+
+    services_block = "\n".join(f"- {name}" for name in service_names)
 
     return f"""
 You are an assistant that bootstraps a booking request into a structured object.
@@ -46,84 +53,49 @@ From the user’s message, infer as many fields as possible for:
 - end_date: str
 - end_time: str
 
-Allowed service_name values (closed list):
-- appointment
-- haircut
-- hair_color
-- nails
-- manicure
-- pedicure
-- massage
-- facial
-- waxing
-- eyebrows
-- lashes
-- makeup
-- consultation
+AVAILABLE SERVICES (authoritative):
+The user may only book one of the following services.
+If the requested service does not clearly match one of these names, output null.
 
-Hebrew → service mapping examples (non-exhaustive):
-- "תור", "פגישה" → appointment
-- "תספורת", "ספר" → haircut
-- "צבע", "צבע לשיער" → hair_color
-- "ציפורניים" → nails
-- "מניקור" → manicure
-- "פדיקור" → pedicure
-- "עיסוי" → massage
-- "טיפול פנים" → facial
-- "שעווה" → waxing
-- "גבות" → eyebrows
-- "ריסים" → lashes
-- "איפור" → makeup
-- "ייעוץ", "פגישת ייעוץ" → consultation
+{services_block}
 
-CURRENT DATE CONTEXT (authoritative):
+Service rules:
+- Match based on meaning, not exact spelling
+- Prefer the most specific service
+- Never invent a service name
+- Output the service **name exactly as listed**, or null
+
+CURRENT DATE CONTEXT:
 - Now: {current_datetime.isoformat()}
 - Today: {current_date.isoformat()}
 - Timezone: {timezone}
-
-NEXT 7 DAYS:
-- {day_name(d1)}: {d1.isoformat()}
-- {day_name(d2)}: {d2.isoformat()}
-- {day_name(d3)}: {d3.isoformat()}
-- {day_name(d4)}: {d4.isoformat()}
-- {day_name(d5)}: {d5.isoformat()}
-- {day_name(d6)}: {d6.isoformat()}
-- {day_name(d7)}: {d7.isoformat()}
 
 Hebrew date interpretation rules:
 - "היום" → {current_date.isoformat()}
 - "מחר" → {d1.isoformat()}
 - "מחרתיים" → {d2.isoformat()}
-- "בעוד X ימים" → current_date + X days
-- "ביום <weekday>" → next occurrence of that weekday (prefer within NEXT 7 DAYS)
-- "שבוע הבא" → NEXT CALENDAR WEEK (Israel convention):
+- "שבוע הבא" → calendar week:
     start_date = {next_week_start.isoformat()}
     end_date   = {next_week_end.isoformat()}
 
 Date rules:
-1) Extract first, ask later.
-2) Never hallucinate. If unclear, output null.
-3) Prefer ranges for vague windows (e.g., "שבוע הבא").
-4) ISO date format only: YYYY-MM-DD.
-5) If a single day is implied, set start_date and end_date to the same value.
+- Prefer ranges for vague windows
+- ISO date format only (YYYY-MM-DD)
+- If a single day is implied, set start_date = end_date
+- Never hallucinate
 
 Time rules:
-6) Explicit times ("בשעה 14:00", "בשתיים"):
-   - start_time = HH:MM
-   - end_time = same HH:MM unless an explicit end is given
-7) Time-of-day windows:
-   - "בבוקר" → 08:00–12:00
-   - "בצהריים" → 12:00–16:00
-   - "אחה״צ" / "אחר הצהריים" → 16:00–20:00
-   - "בערב" → 18:00–22:00
-8) If no time is mentioned: start_time=null, end_time=null
-9) If a date range + time window is given, keep the full date range.
+- Exact time → HH:MM (same start/end)
+- "בבוקר" → 08:00–12:00
+- "בצהריים" → 12:00–16:00
+- "אחה״צ" / "אחר הצהריים" → 16:00–20:00
+- "בערב" → 18:00–22:00
+- If no time is mentioned → null
 
-Conflict handling:
-- Specific beats general.
-- If ambiguity remains, output null.
+Range + time window:
+- If date range + time window are given, keep the full date range
 
 Output rules (STRICT):
-- Output only structured data matching the schema.
-- No explanations or extra text.
+- Output only structured data matching the schema
+- Do not add text or explanations
 """.strip()
