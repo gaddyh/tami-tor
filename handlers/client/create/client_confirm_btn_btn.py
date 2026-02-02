@@ -1,9 +1,9 @@
 
 from models.session_state import SessionState
-from handlers.models import HandlerResult, Effect
+from handlers.models import HandlerResult
 from adapters.primitivies import RawMessage
 from models.session_state import SessionFlow, SessionStep
-from typing import Any
+from typing import Any, Dict
 from observability.obs import instrument_io
 from handlers.utility import get_btn_reply_id
 
@@ -19,7 +19,7 @@ from handlers.utility import get_btn_reply_id
 )
 def client_confirm_btn_btn(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
     print("client_confirm_btn_btn ", state)
-    effects: list[Effect] = []
+    effects: list[Dict[str, Any]] = []
 
     btn_id = get_btn_reply_id(msg)
     if btn_id and btn_id.endswith("_confirm"):

@@ -58,7 +58,7 @@ class Effect(BaseModel):
 
 class HandlerResult(BaseModel):
     state: SessionState
-    effects: list[Effect]
+    effects: list[Dict[str, Any]]
 
 
 Handler = Callable[[Session, RawMessage, dict[str, Any]], HandlerResult]
