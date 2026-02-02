@@ -49,15 +49,8 @@ class EnqueueOwnerApprovalEffect(TypedDict):
 class Effect(TypedDict):
     kind: str  
     to: Literal["client", "owner", "api"]
-    text: Optional[str] = None
-    payload: Optional[dict[str, Any]] = None
-
-@dataclass(frozen=True)
-class ReduceResult:
-    flow: SessionFlow
-    step: SessionStep
-    data: dict[str, Any]
-    effects: list[Effect]
+    text: str = ""
+    payload: dict[str, Any] = {}
 
 class HandlerResult(BaseModel):
     state: SessionState
