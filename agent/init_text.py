@@ -14,22 +14,27 @@ def build_system_prompt(
     active_services = [s for s in services if s.is_active]
     service_names = [s.name for s in active_services]
 
-    # Hebrew weekday names (Monday=0 ... Sunday=6)
+    # Python weekday(): Monday=0 ... Sunday=6
     heb_weekdays = [
-        "יום שני",
-        "יום שלישי",
-        "יום רביעי",
-        "יום חמישי",
-        "יום שישי",
-        "שבת",
-        "יום ראשון",
+        "יום שני",     # 0
+        "יום שלישי",   # 1
+        "יום רביעי",   # 2
+        "יום חמישי",   # 3
+        "יום שישי",    # 4
+        "שבת",         # 5
+        "יום ראשון",   # 6
     ]
 
     def day_name(d):
         return heb_weekdays[d.weekday()]
 
+    # Next 7 days (useful for resolving "ביום חמישי" etc.)
     d1 = current_date + timedelta(days=1)
     d2 = current_date + timedelta(days=2)
+    d3 = current_date + timedelta(days=3)
+    d4 = current_date + timedelta(days=4)
+    d5 = current_date + timedelta(days=5)
+    d6 = current_date + timedelta(days=6)
     d7 = current_date + timedelta(days=7)
 
     # Next calendar week (Sunday–Saturday)
@@ -37,8 +42,8 @@ def build_system_prompt(
     if days_until_next_sunday == 0:
         days_until_next_sunday = 7
 
-    next_week_start = current_date + timedelta(days=days_until_next_sunday)
-    next_week_end = next_week_start + timedelta(days=6)
+    next_week_start = current_date + timedelta(days=days_until_next_sunday)  # Sunday
+    next_week_end = next_week_start + timedelta(days=6)  # Saturday
 
     services_block = "\n".join(f"- {name}" for name in service_names)
 
@@ -63,18 +68,28 @@ Service rules:
 - Match based on meaning, not exact spelling
 - Prefer the most specific service
 - Never invent a service name
-- Output the service **name exactly as listed**, or null
+- Output the service name exactly as listed, or null
 
 CURRENT DATE CONTEXT:
 - Now: {current_datetime.isoformat()}
 - Today: {current_date.isoformat()}
 - Timezone: {timezone}
 
+NEXT 7 DAYS (authoritative mapping for weekday mentions):
+- {day_name(d1)}: {d1.isoformat()}
+- {day_name(d2)}: {d2.isoformat()}
+- {day_name(d3)}: {d3.isoformat()}
+- {day_name(d4)}: {d4.isoformat()}
+- {day_name(d5)}: {d5.isoformat()}
+- {day_name(d6)}: {d6.isoformat()}
+- {day_name(d7)}: {d7.isoformat()}
+
 Hebrew date interpretation rules:
 - "היום" → {current_date.isoformat()}
 - "מחר" → {d1.isoformat()}
 - "מחרתיים" → {d2.isoformat()}
-- "שבוע הבא" → calendar week:
+- "ביום <weekday>" (e.g. "בחמישי", "ביום חמישי") → choose the next occurrence of that weekday from Today (prefer within NEXT 7 DAYS).
+- "שבוע הבא" → calendar week (Israel convention Sunday–Saturday):
     start_date = {next_week_start.isoformat()}
     end_date   = {next_week_end.isoformat()}
 
@@ -95,7 +110,36 @@ Time rules:
 Range + time window:
 - If date range + time window are given, keep the full date range
 
-Output rules (STRICT):
-- Output only structured data matching the schema
-- Do not add text or explanations
+OUTPUT FORMAT (STRICT):
+Return ONLY a JSON object with exactly these keys:
+service_name, start_date, start_time, end_date, end_time
+Use null for unknowns.
+No extra text.
+
+EXAMPLES (input → output):
+
+1) Input: "אני רוצה לקבוע תור"
+Output:
+{{"service_name": null, "start_date": null, "start_time": null, "end_date": null, "end_time": null}}
+
+2) Input: "אני רוצה תור לציפורניים"
+Output:
+{{"service_name": "ציפורניים", "start_date": null, "start_time": null, "end_date": null, "end_time": null}}
+
+3) Input: "יש תספורת שבוע הבא"
+Output:
+{{"service_name": "תספורת", "start_date": "{next_week_start.isoformat()}", "start_time": null, "end_date": "{next_week_end.isoformat()}", "end_time": null}}
+
+4) Input: "יש תספורת מחר בשתיים?"
+Output:
+{{"service_name": "תספורת", "start_date": "{d1.isoformat()}", "start_time": "14:00", "end_date": "{d1.isoformat()}", "end_time": "14:00"}}
+
+5) Input: "יש פדיקור שבוע הבא אחה״צ?"
+Output:
+{{"service_name": "פדיקור", "start_date": "{next_week_start.isoformat()}", "start_time": "16:00", "end_date": "{next_week_end.isoformat()}", "end_time": "20:00"}}
+
+6) Input: "אפשר תור פדיקור בחמישי?"
+Output:
+{{"service_name": "פדיקור", "start_date": "<next Thursday date>", "start_time": null, "end_date": "<next Thursday date>", "end_time": null}}
+(Where "<next Thursday date>" is the next occurrence of Thursday from Today, preferably within NEXT 7 DAYS.)
 """.strip()
