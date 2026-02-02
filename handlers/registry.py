@@ -18,8 +18,11 @@ tami_wa_id = "723503380842690"
 tami_dev_wa_id = "816205444920021"
 tami_tor_wa_id = "982974261547358"
 
-def tami_handler(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
-    return dispatch(state, msg, ctx)
+def tami_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
+    return HandlerResult(
+        state=SessionState.model_validate(state_json),
+        effects=[],
+    )
 
 def tami_dev_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
     if not state_json:
@@ -41,8 +44,11 @@ def tami_dev_handler(business: Business, is_provider: bool, state_json: dict[str
 
     return result
 
-def tami_tor_handler(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
-    return dispatch(state, msg, ctx)
+def tami_tor_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
+    return HandlerResult(
+        state=SessionState.model_validate(state_json),
+        effects=[],
+    )
 
 wa_phone_id_registry = {
     tami_wa_id: tami_handler,
