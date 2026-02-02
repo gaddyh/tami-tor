@@ -31,6 +31,8 @@ def get_type(rawMessage: RawMessage) -> InputType:
         elif rawMessage.content.list_reply:
             type = InputType.LIST_ID
 
+    return type
+
 
 @instrument_io(
     name="init_state",
