@@ -22,6 +22,7 @@ dependencies = [
     "pytz (>=2025.2,<2026.0)",
     "google-auth (>=2.48.0,<3.0.0)",
     "langfuse (>=3.12.1,<4.0.0)",
+    "google-cloud-speech (>=2.36.0,<3.0.0)",
 ]
 
 [tool.poetry]

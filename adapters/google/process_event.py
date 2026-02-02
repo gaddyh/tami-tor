@@ -223,7 +223,6 @@ def _overlaps(a_start: datetime, a_end: datetime, b_start: datetime, b_end: date
     # assume all arguments are tz-aware and in the SAME zone (we’ll use UTC)
     return (a_start < b_end) and (a_end > b_start)
 
-#Todo: remove hardcoded israeli zone
 def _event_time_range(item: dict, default_tz: str) -> tuple[datetime, datetime]:
     """
     Returns (start_utc, end_utc) for a Google Calendar event.

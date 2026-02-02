@@ -15,9 +15,10 @@ from reducers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
-from handlers.registry import dispatch
+from handlers.registry import dispatch, wa_phone_id_registry
 from models.calendar_event import EventItem
 from tools.event_booking import create_event
+from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 
 @instrument_io(
     name="handle_process_inbound",
@@ -41,29 +42,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
     rawMessage, adapter = await ingest_inbound(inbound, wi)
 
+    wa_phone_id_handler = wa_phone_id_registry.get(inbound.phone_number_id)
+    if not wa_phone_id_handler:
+        raise NonRetryableError(f"No handler found for phone_number_id={inbound.phone_number_id}")
+    
     session = load_or_create_session(db, business_id=wi.business_id, client_id=wi.client_id)
-
     business = load_business_by_id(db, wi.business_id)
-
     is_provider = business.is_provider(wi.client_id)
-    if not session.state_json:
-        state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
-        session.state_json = state.model_dump()
-    else:
-        state = SessionState.model_validate(session.state_json)
-
-    ctx = {
-        "is_provider": is_provider,
-        "services": business.services(),
-        "timezone": business.timezone,
-        "booking_policy_mode": business.booking_policy_mode,
-        "default_provider_id": business.get_default_provider_id(),
-    }
-
-    state.input_type = get_type(rawMessage)
-
-    result = dispatch(state=state, msg=rawMessage, ctx=ctx)
-    session.state_json = result.state.model_dump()
+    result:HandlerResult = wa_phone_id_handler(business, is_provider, session.state_json, rawMessage, adapter)
+   
     state = result.state
     try:
         for eff in result.effects or []:
@@ -152,7 +139,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         "slots_total": len(items or []),
                         # keep it light; don’t dump full API responses into metadata
                         "send_ok": bool(send_result),
-                        "state": session.state_json,
+                        "state": state.model_dump(),
                     },
                 )
 
@@ -175,7 +162,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     meta={
                         "work_id": str(wi.work_id),
                         "to_phone": wi.client_id,
-                        "state": session.state_json,
+                        "state": state.model_dump(),
                     },
                 )
 

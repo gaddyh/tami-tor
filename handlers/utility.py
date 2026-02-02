@@ -16,6 +16,7 @@ from models.business import Business
 from runtime.redis_client import enqueue_work
 from runtime.events import emit_event
 from observability.obs import instrument_io
+from adapters.transcribe import transcribe_facebook_audio
 
 def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")
@@ -148,7 +149,10 @@ def output_fn(result):
         "adapter": adapter.phone_number_id,
     }
 
-
+def handle_media(content):
+    if content.type == "audio":
+        text = transcribe_facebook_audio(content.media)
+        content.text = f"stt: {text}"
 
 @instrument_io(
     name="ingest_inbound",
@@ -187,6 +191,8 @@ async def ingest_inbound(inbound:InboundMessage, wi:WorkItem):
 
     adapter = CloudAPIAdapter(phone_number_id)
     rawMessage: RawMessage = await adapter.parse_incoming(raw)
+
+    handle_media(rawMessage.content)
 
     emit_event(
         event="INBOUND_PARSED",

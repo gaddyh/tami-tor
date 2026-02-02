@@ -10,6 +10,45 @@ from models.session import Session
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from observability.obs import instrument_io
+from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
+from models.business import Business
+from adapters.cloud_api import CloudAPIAdapter
+
+tami_wa_id = "723503380842690"
+tami_dev_wa_id = "816205444920021"
+tami_tor_wa_id = "982974261547358"
+
+def tami_handler(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+    return dispatch(state, msg, ctx)
+
+def tami_dev_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
+    if not state_json:
+        state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
+    else:
+        state = SessionState.model_validate(state_json)
+
+    ctx = {
+        "is_provider": is_provider,
+        "services": business.services(),
+        "timezone": business.timezone,
+        "booking_policy_mode": business.booking_policy_mode,
+        "default_provider_id": business.get_default_provider_id(),
+    }
+
+    state.input_type = get_type(rawMessage)
+
+    result = dispatch(state=state, msg=rawMessage, ctx=ctx)
+
+    return result
+
+def tami_tor_handler(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> HandlerResult:
+    return dispatch(state, msg, ctx)
+
+wa_phone_id_registry = {
+    tami_wa_id: tami_handler,
+    tami_dev_wa_id: tami_dev_handler,
+    tami_tor_wa_id: tami_tor_handler,
+}
 
 @instrument_io(
     name="dispatch",
