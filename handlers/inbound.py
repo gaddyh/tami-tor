@@ -220,6 +220,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
         return session.state_json or debug  # for observability
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         emit_event(
             event="INBOUND_HANDLER_ERROR",
             inbound_id=str(wi.ref_id),
