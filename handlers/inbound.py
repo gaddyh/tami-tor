@@ -202,7 +202,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
         if state.step == SessionStep.DONE:
             debug = session.state_json
-            session.state_json = "{}"
+            session.state_json = {}
 
         emit_event(
             event="INBOUND_HANDLER_DONE",
