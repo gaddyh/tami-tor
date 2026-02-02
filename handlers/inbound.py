@@ -179,7 +179,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 event = EventItem(
                     item_id=None,
                     command="create",
-                    title=service_name + " - " + client_name,
+                    title=service_name + " - " + (client_name or ""),
                     description=None,
                     datetime=chosen_start,
                     date=None,
