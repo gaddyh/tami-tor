@@ -62,14 +62,15 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
     result = dispatch(state=state, msg=rawMessage, ctx=ctx)
     session.state_json = result.state.model_dump()
+    state = result.state
     try:
         for eff in result.effects or []:
             kind = eff.get("kind", "UNKNOWN_EFFECT")
-            service_id = session.state_json["data"]["service_id"]
-            service_name = session.state_json["data"]["service_name"]
-            client_name = session.state_json["data"]["client_name"]
-            duration = session.state_json["data"]["duration"]
-            chosen_slot = session.state_json["data"]["chosen_slot"]
+            service_id = state.data.service_id
+            service_name = state.data.service_name
+            client_name = state.data.client_name
+            duration = state.data.duration
+            chosen_slot = state.data.chosen_slot
             chosen_start = chosen_slot["start"]
             chosen_end = chosen_slot["end"]
 
@@ -123,11 +124,11 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     timezone=business.timezone,
                     start_date=now.isoformat(),
                     end_date=(now + timedelta(days=4)).isoformat(),
-                    duration=session.state_json["data"]["duration"],
+                    duration=state.data.duration,
                 )
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
-                session.state_json["data"]["chunked"] = chunked.model_dump()
-                session.state_json["data"]["chunk_index"] = 0
+                state.data.chunked = chunked.model_dump()
+                state.data.chunk_index = 0
 
                 payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
                 send_result = await adapter.send_dynamic_list_message(to_phone=wi.client_id, interactive_payload=payload)
@@ -150,7 +151,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 )
 
             if kind == "SEND_CONFIRM_BUTTONS" and eff.get("to") == "client":
-                slot = session.state_json["data"]["chosen_slot"]
+                slot = state.data.chosen_slot
                 slot = TimeSlot.model_validate(slot)
                 payload = build_hebrew_slot_confirmation(slot)
                 await adapter.send_action_buttons(
@@ -200,6 +201,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         message=eff.get("text", ""),
                     )
 
+        session.state_json = state.model_dump()
         if state.step == SessionStep.DONE:
             debug = session.state_json
             session.state_json = {}
