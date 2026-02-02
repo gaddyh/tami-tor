@@ -26,7 +26,7 @@ def tami_handler(business: Business, is_provider: bool, state_json: dict[str, An
 
 def tami_dev_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
     if not state_json:
-        state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
+        state = init_state(rawMessage, actor=Actor.CLIENT) #TODO
     else:
         state = SessionState.model_validate(state_json)
 
@@ -45,10 +45,24 @@ def tami_dev_handler(business: Business, is_provider: bool, state_json: dict[str
     return result
 
 def tami_tor_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
-    return HandlerResult(
-        state=SessionState.model_validate(state_json),
-        effects=[],
-    )
+    if not state_json:
+        state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
+    else:
+        state = SessionState.model_validate(state_json)
+
+    ctx = {
+        "is_provider": is_provider,
+        "services": business.services(),
+        "timezone": business.timezone,
+        "booking_policy_mode": business.booking_policy_mode,
+        "default_provider_id": business.get_default_provider_id(),
+    }
+
+    state.input_type = get_type(rawMessage)
+
+    result = dispatch(state=state, msg=rawMessage, ctx=ctx)
+
+    return result
 
 wa_phone_id_registry = {
     tami_wa_id: tami_handler,

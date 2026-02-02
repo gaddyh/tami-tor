@@ -107,7 +107,8 @@ if __name__ == "__main__":
         Service(id="1", name="פדיקור", duration_min=60, price=100),
         Service(id="2", name="פודיקור", duration_min=60, price=100),
     ]
-    res = get_llm_bootstrap("יש פדיקור שבוע הבא אחה״צ?", services)
+    
+    res = get_llm_bootstrap("אפשר תור פדיקור בחמישי?", services)
 
     elapsed_ms = (time.perf_counter() - start)
 
