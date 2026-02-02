@@ -1,43 +1,41 @@
-from datetime import date, timedelta
-
-# ---- runtime calendar grounding ----
-CURRENT_DATE = date(2026, 2, 2)
-TIMEZONE = "Asia/Jerusalem"
-
-# Hebrew weekday names (Python: Monday=0 ... Sunday=6)
-HEB_WEEKDAYS = [
-    "יום שני",
-    "יום שלישי",
-    "יום רביעי",
-    "יום חמישי",
-    "יום שישי",
-    "שבת",
-    "יום ראשון",
-]
-
-def day_name(d: date) -> str:
-    return HEB_WEEKDAYS[d.weekday()]
+from datetime import datetime, timedelta
 
 
-# Next 7 days
-d1 = CURRENT_DATE + timedelta(days=1)
-d2 = CURRENT_DATE + timedelta(days=2)
-d3 = CURRENT_DATE + timedelta(days=3)
-d4 = CURRENT_DATE + timedelta(days=4)
-d5 = CURRENT_DATE + timedelta(days=5)
-d6 = CURRENT_DATE + timedelta(days=6)
-d7 = CURRENT_DATE + timedelta(days=7)
+def build_system_prompt(current_datetime: datetime, timezone: str) -> str:
+    current_date = current_datetime.date()
 
-# Define "שבוע הבא" as next calendar week (Sunday–Saturday)
-days_until_next_sunday = (6 - CURRENT_DATE.weekday()) % 7
-if days_until_next_sunday == 0:
-    days_until_next_sunday = 7
+    # Hebrew weekday names (Python: Monday=0 ... Sunday=6)
+    heb_weekdays = [
+        "יום שני",
+        "יום שלישי",
+        "יום רביעי",
+        "יום חמישי",
+        "יום שישי",
+        "שבת",
+        "יום ראשון",
+    ]
 
-NEXT_WEEK_START = CURRENT_DATE + timedelta(days=days_until_next_sunday)
-NEXT_WEEK_END = NEXT_WEEK_START + timedelta(days=6)
+    def day_name(d):
+        return heb_weekdays[d.weekday()]
 
+    # Next 7 days
+    d1 = current_date + timedelta(days=1)
+    d2 = current_date + timedelta(days=2)
+    d3 = current_date + timedelta(days=3)
+    d4 = current_date + timedelta(days=4)
+    d5 = current_date + timedelta(days=5)
+    d6 = current_date + timedelta(days=6)
+    d7 = current_date + timedelta(days=7)
 
-SYSTEM_PROMPT = f"""
+    # Define "שבוע הבא" as next calendar week (Sunday–Saturday)
+    days_until_next_sunday = (6 - current_date.weekday()) % 7
+    if days_until_next_sunday == 0:
+        days_until_next_sunday = 7
+
+    next_week_start = current_date + timedelta(days=days_until_next_sunday)
+    next_week_end = next_week_start + timedelta(days=6)
+
+    return f"""
 You are an assistant that bootstraps a booking request into a structured object.
 
 Goal:
@@ -79,8 +77,9 @@ Hebrew → service mapping examples (non-exhaustive):
 - "ייעוץ", "פגישת ייעוץ" → consultation
 
 CURRENT DATE CONTEXT (authoritative):
-- Today: {CURRENT_DATE.isoformat()}
-- Timezone: {TIMEZONE}
+- Now: {current_datetime.isoformat()}
+- Today: {current_date.isoformat()}
+- Timezone: {timezone}
 
 NEXT 7 DAYS:
 - {day_name(d1)}: {d1.isoformat()}
@@ -92,14 +91,14 @@ NEXT 7 DAYS:
 - {day_name(d7)}: {d7.isoformat()}
 
 Hebrew date interpretation rules:
-- "היום" → {CURRENT_DATE.isoformat()}
+- "היום" → {current_date.isoformat()}
 - "מחר" → {d1.isoformat()}
 - "מחרתיים" → {d2.isoformat()}
 - "בעוד X ימים" → current_date + X days
 - "ביום <weekday>" → next occurrence of that weekday (prefer within NEXT 7 DAYS)
 - "שבוע הבא" → NEXT CALENDAR WEEK (Israel convention):
-    start_date = {NEXT_WEEK_START.isoformat()}
-    end_date   = {NEXT_WEEK_END.isoformat()}
+    start_date = {next_week_start.isoformat()}
+    end_date   = {next_week_end.isoformat()}
 
 Date rules:
 1) Extract first, ask later.

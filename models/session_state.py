@@ -7,7 +7,7 @@ from typing import Literal
 from sqlalchemy.sql.coercions import expect
 from pydantic import BaseModel
 from models.availability import ChunkedAvailability, TimeSlot
-
+from agent.core import CalendarEventBootstrap
 class Actor(str, Enum):
     CLIENT = "client"
     OWNER = "owner"
@@ -47,7 +47,7 @@ class SessionData(BaseModel):
     duration: Optional[int] = None
     chunked:Optional[ChunkedAvailability] = None
     chunked_index: Optional[int] = None
-
+    bootstrap: Optional[CalendarEventBootstrap] = None
     chosen_slot:Optional[TimeSlot] = None
 
 class SessionState(BaseModel):

@@ -4,6 +4,7 @@ from adapters.primitivies import RawMessage
 from typing import Any
 from observability.obs import instrument_io
 from handlers.utility import build_service_rows
+from agent.core import get_llm_bootstrap
 
 @instrument_io(
     name="init_text",
@@ -23,9 +24,39 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         effects.append({"kind": "SEND_TEXT", "to": "client", "text": "אין שירותים זמינים כרגע."})
         return HandlerResult(state=state, effects=effects)
 
-    state.step = SessionStep.SERVICE_PICK
-    state.input_type = InputType.LIST_ID
-    state.expected_type = InputType.LIST_ID
-    effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})
+    state.bootstrap = get_llm_bootstrap(msg.content.text)
+    if state.bootstrap.is_empty():
+        state.step = SessionStep.SERVICE_PICK
+        state.input_type = InputType.LIST_ID
+        state.expected_type = InputType.LIST_ID
+        effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})
+
+    if state.bootstrap.has_service_name():
+        service_id = next((s.id for s in services if s.name == state.bootstrap.service_name), None)
+        service = next((s for s in services if getattr(s, "id", None) == service_id), None)
+        if not service:
+            effects.append({
+                "kind": "SEND_TEXT",
+                "to": "client",
+                "text": "לא מצאתי את השירות הזה. נסי לבחור שוב מהרשימה.",
+            })
+            return HandlerResult(state=state, effects=effects)
+
+        # persist in session data
+        state.data.service_id = getattr(service, "id", None)
+        state.data.service_name = getattr(service, "name", None)
+        state.data.duration = getattr(service, "duration_min", None)
+
+        state.step = SessionStep.SLOTS_PICK
+        state.input_type = InputType.LIST_ID
+        state.expected_type = InputType.LIST_ID
+        effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
+
+    if state.bootstrap.has_any_date_or_time():
+        state.step = SessionStep.SLOTS_PICK
+        state.input_type = InputType.LIST_ID
+        state.expected_type = InputType.LIST_ID
+        effects.append({"kind": "SEND_AVAILABILITY", "to": "client", "chunked": state.bootstrap})
     
+        
     return HandlerResult(state=state, effects=effects)
