@@ -6,6 +6,7 @@ from adapters.google.tokens import get_valid_credentials
 from typing import List
 
 from models.availability import TimeSlot, SlotChunk, ChunkedAvailability
+from runtime.events import now_israel
 def init_google_calendar(user_id: str):
     creds = get_valid_credentials(user_id)
     service = build('calendar', 'v3', credentials=creds)
@@ -240,8 +241,9 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
     free_slots = find_free_slots(busy_periods, start_dt, end_dt, timezone)
     print(f"Found {len(free_slots)} free slots:", free_slots)
     if len(free_slots) == 0:
-        start_dt = (start_dt - timedelta(days=1))
-        end_dt = (end_dt + timedelta(days=1))
+        now = now_israel()
+        start_dt = max(start_dt - timedelta(days=1), now)
+        end_dt = (end_dt + timedelta(days=2))
         return get_available_slots(user_id, timezone, start_dt.isoformat(), end_dt.isoformat(), duration)
     slots_by_day = split_slots_by_day(free_slots, duration)
     #slots_by_day = limit_slots_by_day(slots_by_day)
