@@ -30,6 +30,7 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         state.step = SessionStep.SERVICE_PICK
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})
+        return HandlerResult(state=state, effects=effects)
 
     if state.data.bootstrap.has_service_name():
         service_id = next((s.id for s in services if s.name == state.data.bootstrap.service_name), None)
@@ -49,14 +50,15 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
 
         state.step = SessionStep.SLOTS_PICK
         state.expected_type = InputType.LIST_ID
-        effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
+        if effects.count() == 0:
+            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
 
     if state.data.bootstrap.has_any_date_or_time():
         timezone = ctx.get("timezone") or "Asia/Jerusalem"
         state.data.bootstrap_start_dt, state.data.bootstrap_end_dt = state.data.bootstrap.to_datetimes(timezone)
         state.step = SessionStep.SLOTS_PICK
         state.expected_type = InputType.LIST_ID
-        effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
-    
+        if effects.count() == 0:
+            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})    
         
     return HandlerResult(state=state, effects=effects)
