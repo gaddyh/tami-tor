@@ -231,6 +231,7 @@ def main() -> None:
                     call_handler(handler, db, wi)
 
                     mark_done(wi)
+                    print("WORK item before commit: ", wi)
                     db.commit()
 
                     emit_event(
