@@ -25,7 +25,7 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         return HandlerResult(state=state, effects=effects)
 
     text = msg.content.text.strip()
-    if text == "שלי":
+    if "שלי" in text:
         effects.append({"kind": "FETCH_EVENTS", "to": "client", "rows": []})
         return HandlerResult(state=state, effects=effects)
     

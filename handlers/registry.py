@@ -1,3 +1,4 @@
+from ensurepip import bootstrap
 from typing import Callable, Dict, Any, Optional, Tuple
 
 from models.session_state import InputType, SessionFlow, SessionStep, SessionState, Actor
@@ -5,20 +6,30 @@ from handlers.client.create.client_show_services_list_list import client_show_se
 from handlers.client.create.client_show_slots_list_list import client_show_slots_list_list
 from handlers.client.create.client_confirm_btn_btn import client_confirm_btn_btn
 from handlers.client.create.init_text import init_text
-from models.session import Session
-
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from observability.obs import instrument_io
 from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
 from models.business import Business
 from adapters.cloud_api import CloudAPIAdapter
+from agent.tami_core import get_llm_simple_reminders, ReminderBootstrap
 
 tami_wa_id = "723503380842690"
 tami_dev_wa_id = "816205444920021"
 tami_tor_wa_id = "982974261547358"
 
 def tami_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
+    effects = []
+    text = rawMessage.content.text.strip()
+    if "תזכיר" in text:
+        bootstrap:ReminderBootstrap = get_llm_simple_reminders(text)
+        if bootstrap.start and bootstrap.title:
+            effects.append({"kind": "CREATE_REMINDER", "title": bootstrap.title, "start": bootstrap.start, "end": bootstrap.end})
+        return HandlerResult(
+            state=SessionState.model_validate(state_json),
+            effects=effects,
+        )
+
     return HandlerResult(
         state=SessionState.model_validate(state_json),
         effects=[],
