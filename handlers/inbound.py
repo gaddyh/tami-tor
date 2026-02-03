@@ -147,16 +147,9 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 state.data.chunked_index = 0
 
                 payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
-                persist_scheduled_message_and_enqueue(
-                    business_id=session.business_id,
-                    wa_id=inbound.phone_number_id,
-                    client_id=session.client_id,
-                    to_chat_id=wi.client_id,
-                    interactive_payload=payload,
-                    workflow_id=str(session.session_id),
-                    send_at=now_israel(),
-                    to_name="client_name",
-                    idempotency_key=wi.work_id,
+                res = await adapter.send_dynamic_list_message(
+                    recipient=wi.client_id,
+                    message=payload,
                 )
 
                 emit_event(
@@ -170,7 +163,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         "work_id": str(wi.work_id),
                         "to_phone": str(wi.client_id),
                         "slots_total": len(items or []),
-                        "send_ok": True,
+                        "send_ok": res["status"] == "sent",
                         "state": state.model_dump(mode="json"),
                     },
                 )
