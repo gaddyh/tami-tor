@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, Any, Mapping
+from uuid import UUID
+from enum import Enum
+
 from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
-from models.calendar_event import EventRow  # SQLAlchemy model
-import uuid as uuid_lib
+from models.calendar_event import EventRow  # your ORM class
 
-from datetime import datetime, date
-from uuid import UUID
-from enum import Enum
-from typing import Any, Mapping
 
 def jsonify(x: Any) -> Any:
     if x is None or isinstance(x, (str, int, float, bool)):
@@ -28,112 +26,98 @@ def jsonify(x: Any) -> Any:
         return [jsonify(v) for v in x]
     return str(x)
 
+
 def _parse_dt(value: Optional[str]) -> Optional[datetime]:
-    if value is None:
-        return None
-    if value == "":
+    if not value:
         return None
     return datetime.fromisoformat(value)
 
 
 def _parse_date(value: Optional[str]) -> Optional[date]:
-    if value is None:
-        return None
-    if value == "":
+    if not value:
         return None
     return date.fromisoformat(value)
+
 
 def persist_event_item(
     *,
     user_id: str,
-    event: EventRow,  # your Pydantic EventItem type
+    event,  # <-- Pydantic EventItem (NOT EventRow)
     raw: Optional[dict] = None,
 ) -> str:
-    """
-    Persists a Pydantic EventItem (command='create'/'update' etc.) into event_items.
-
-    Returns the DB UUID as a string.
-
-    Notes:
-    - command is not persisted
-    - item_id is tool-level; DB primary key is 'id'
-    """
     if not user_id:
         raise ValueError("user_id is required")
     if not event.title:
         raise ValueError("event.title is required")
 
-    # Determine all_day + parse appropriate fields
-    all_day = bool(event.all_day)
+    all_day = bool(getattr(event, "all_day", False))
 
-    start_at = _parse_dt(event.start_at)
-    end_at = _parse_dt(event.end_at)
+    start_at = _parse_dt(getattr(event, "start_at", None))
+    end_at = _parse_dt(getattr(event, "end_at", None))
+    start_date = _parse_date(getattr(event, "date", None))
+    end_date = _parse_date(getattr(event, "end_date", None))
 
-    start_date = _parse_date(event.date)
-    end_date = _parse_date(event.end_date)
-
-    # Validate shape (match DB CHECK constraints)
+    # Validate shape (matches your DB CHECK constraints)
     if all_day:
         if not start_date or not end_date:
             raise ValueError("all_day=True requires date and end_date")
         if start_at or end_at:
-            raise ValueError("all_day=True cannot include datetime/end_datetime")
+            raise ValueError("all_day=True cannot include start_at/end_at")
         if end_date <= start_date:
             raise ValueError("end_date must be > date")
     else:
         if not start_at or not end_at:
-            raise ValueError("all_day=False requires datetime and end_datetime")
+            raise ValueError("all_day=False requires start_at and end_at")
         if start_date or end_date:
             raise ValueError("all_day=False cannot include date/end_date")
         if end_at <= start_at:
-            raise ValueError("end_datetime must be > datetime")
+            raise ValueError("end_at must be > start_at")
 
     delete_scope = getattr(event, "delete_scope", "single") or "single"
     if delete_scope not in ("single", "series", "this_and_following"):
         raise ValueError("delete_scope must be single|series|this_and_following")
 
-    # Convert nested pydantic objects to JSONable dicts
-    participants_json = (
-        [p.model_dump(mode="json", exclude_none=True) for p in (event.participants or [])]
-        if event.participants is not None
-        else None
-    )
+    # ---- JSONB payloads (ALWAYS jsonify) ----
+    participants_json = None
+    if getattr(event, "participants", None) is not None:
+        participants_json = jsonify(
+            [p.model_dump(mode="json", exclude_none=True) for p in (event.participants or [])]
+        )
 
-    reminders_json = (
-        [r.model_dump(mode="json", exclude_none=True) for r in (event.reminders or [])]
-        if event.reminders is not None
-        else None
-    )
+    reminders_json = None
+    if getattr(event, "reminders", None) is not None:
+        reminders_json = jsonify(
+            [r.model_dump(mode="json", exclude_none=True) for r in (event.reminders or [])]
+        )
 
-    recurrence_json = (
-        event.recurrence.model_dump(mode="json", exclude_none=True)
-        if event.recurrence
-        else None
-    )
-
+    recurrence_json = None
+    if getattr(event, "recurrence", None):
+        recurrence_json = jsonify(event.recurrence.model_dump(mode="json", exclude_none=True))
 
     with SessionLocal() as db:
         try:
             row = EventRow(
                 user_id=user_id,
+                op_id=getattr(event, "op_id", None),
                 item_type="event",
 
                 title=event.title,
-                description=event.description,
-                status="open",
+                description=getattr(event, "description", None),
+                status=str(getattr(event, "status", "open")),
 
-                op_id=getattr(event, "op_id", None),
+                gcal_event_id=getattr(event, "gcal_event_id", None),
 
-                allow_conflicts=bool(event.allow_conflicts),
+                allow_conflicts=bool(getattr(event, "allow_conflicts", False)),
 
-                datetime=start_at,
-                end_datetime=end_at,
-                start_date=start_date,
+                # ✅ correct ORM column names
+                start_at=start_at,
+                end_at=end_at,
+                date=start_date,
                 end_date=end_date,
                 all_day=all_day,
 
-                timezone=event.timezone,
-                location=event.location,
+                timezone=getattr(event, "timezone", None),
+                location=getattr(event, "location", None),
 
                 participants=participants_json,
                 recurrence=recurrence_json,
@@ -143,8 +127,9 @@ def persist_event_item(
                 send_updates=bool(getattr(event, "send_updates", False)),
                 notify=bool(getattr(event, "notify", False)),
 
-                raw=jsonify(raw),
+                raw=jsonify(raw) if raw is not None else None,
             )
+
             db.add(row)
             db.flush()
             db.commit()
@@ -152,8 +137,6 @@ def persist_event_item(
 
         except IntegrityError:
             db.rollback()
-
-            # Optional idempotent behavior on (user_id, op_id)
             op_id = getattr(event, "op_id", None)
             if op_id:
                 existing = (
