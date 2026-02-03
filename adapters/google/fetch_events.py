@@ -9,7 +9,7 @@ from sqlalchemy import or_, and_
 from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
-from models.calendar_event import EventItem as EventRow  # your SQLAlchemy EventItem model
+from models.calendar_event import EventRow  # your SQLAlchemy EventItem model
 from adapters.google.tokens import get_valid_credentials
 
 def init_google_calendar(user_id: str):

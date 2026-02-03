@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Optional, Literal, List, Dict
 from observability.obs import span_attrs, mark_error, instrument_io
-from models.calendar_event import EventItem
+from models.event_item import EventItem
 from adapters.google.process_event import _process_event
 
 def summarize(result: dict):

@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
-from models.calendar_event import EventItem as EventRow  # SQLAlchemy model
+from models.calendar_event import EventRow  # SQLAlchemy model
 import uuid as uuid_lib
 
 from datetime import datetime, date

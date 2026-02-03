@@ -20,7 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from db.base import Base
 
 
-class EventItem(Base):
+class EventRow(Base):
     __tablename__ = "event_items"
 
     __table_args__ = (

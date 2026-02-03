@@ -1,7 +1,7 @@
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
-from models.calendar_event import EventItem
+from models.event_item import EventItem
 from adapters.google.tokens import get_valid_credentials
 
 from datetime import datetime, timezone, date, timedelta
