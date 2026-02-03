@@ -86,6 +86,38 @@ def claim_work(db: OrmSession, work_id: str) -> Optional[WorkItem]:
         db.refresh(wi)
     return wi
 
+import logging
+from sqlalchemy.exc import SQLAlchemyError
+
+log = logging.getLogger("db")
+
+def commit_with_debug(db):
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        print("Commit failed with exception ", e)
+        log.exception("Commit failed")
+
+        # Many commit-time failures are wrapped; these often exist:
+        stmt = getattr(e, "statement", None)
+        params = getattr(e, "params", None)
+
+        if stmt is not None:
+            print("Failing statement:\n%s", stmt)
+            log.error("Failing statement:\n%s", stmt)
+
+        if params is not None:
+            print("Failing params:\n%r", params)
+            log.error("Failing params:\n%r", params)
+
+        # If it’s a wrapper, show the original too
+        orig = getattr(e, "orig", None)
+        if orig is not None:
+            print("Original exception: %r", orig)
+            log.error("Original exception: %r", orig)
+
+        db.rollback()
+        raise
 
 def mark_done(wi: WorkItem) -> None:
     wi.status = "done"
@@ -232,7 +264,7 @@ def main() -> None:
 
                     mark_done(wi)
                     print("WORK item before commit: ", wi)
-                    db.commit()
+                    commit_with_debug(db)
 
                     emit_event(
                         event="WORK_DONE",
