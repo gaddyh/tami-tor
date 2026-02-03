@@ -28,6 +28,11 @@ class EventItem(BaseActionItem):
         description="Always 'event'. Used to distinguish event items from tasks or other item types."
     )
 
+    service_id: Optional[str] = Field(
+        None,
+        description="Service ID (e.g. '1234567890')."
+    )
+
     allow_conflicts: bool = Field(
         False,
         description="If true, create/update the event even if it overlaps existing events (override double-booking)."

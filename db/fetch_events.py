@@ -53,7 +53,7 @@ def fetch_future_events(
     with SessionLocal() as db:
         q = (
             db.query(EventRow)
-            .filter(EventRow.user_id == user_id)
+            .filter(EventRow.client_id == user_id)
             .filter(status_filter)
             .filter(future_pred)
             # Ordering:

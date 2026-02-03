@@ -72,7 +72,8 @@ class EventRow(Base):
         # Idempotency: unique per user when op_id is present
         Index(
             "ux_event_items_user_op_id",
-            "user_id",
+            "provider_id",
+            "client_id",
             "op_id",
             unique=True,
             postgresql_where=text("op_id IS NOT NULL"),
@@ -80,8 +81,8 @@ class EventRow(Base):
 
         # Prevent duplicate Google event mapping per user
         Index(
-            "ux_event_items_user_gcal_event_id",
-            "user_id",
+            "ux_event_items_provider_gcal_event_id",
+            "provider_id",
             "gcal_event_id",
             unique=True,
             postgresql_where=text("gcal_event_id IS NOT NULL"),
@@ -94,7 +95,9 @@ class EventRow(Base):
         default=uuid.uuid4,
     )
 
-    user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    client_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    provider_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    service_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     op_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
 
     item_type: Mapped[str] = mapped_column(

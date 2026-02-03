@@ -69,11 +69,12 @@ def _fields_set(obj: Any) -> set[str]:
 
 def persist_event_item(
     *,
-    user_id: str,
+    provider_id: str,
+    client_id: str,
     event: Any,  # Pydantic EventItem (not ORM)
     raw: Optional[dict] = None,
 ) -> str:
-    if not user_id:
+    if not provider_id:
         raise ValueError("user_id is required")
     if not getattr(event, "title", None):
         raise ValueError("event.title is required")
@@ -139,7 +140,9 @@ def persist_event_item(
     with SessionLocal() as db:
         try:
             row = EventRow(
-                user_id=user_id,
+                client_id=client_id,
+                provider_id=provider_id,
+                service_id=getattr(event, "service_id", None),
                 op_id=getattr(event, "op_id", None),
                 item_type="event",
                 title=event.title,
@@ -174,7 +177,7 @@ def persist_event_item(
             if op_id:
                 existing = (
                     db.query(EventRow)
-                    .filter(EventRow.user_id == user_id, EventRow.op_id == op_id)
+                    .filter(EventRow.client_id == provider_id, EventRow.op_id == op_id)
                     .one_or_none()
                 )
                 if existing:
@@ -182,151 +185,39 @@ def persist_event_item(
             raise
 
 
-def update_event_item(
+from sqlalchemy import or_
+
+def update_event_gcal(
     *,
     user_id: str,
-    event: Any,  # Pydantic EventItem (not ORM)
-    event_id: Optional[str] = None,  # allow passing id explicitly
-    gcal_event_id: Optional[str] = None,
-    raw: Optional[dict] = None,
-) -> str:
+    event_id: str,
+    gcal_event_id: str,
+) -> None:
     if not user_id:
         raise ValueError("user_id is required")
-
-    # accept event.id or explicit event_id
-    eid = event_id or getattr(event, "id", None) or getattr(event, "item_id", None)
-    if not eid:
-        raise ValueError("event.id (or event_id) is required for update")
+    if not gcal_event_id:
+        raise ValueError("gcal_event_id is required")
 
     try:
-        event_uuid = uuid_lib.UUID(str(eid))
+        event_uuid = uuid_lib.UUID(str(event_id))
     except ValueError as e:
-        raise ValueError("event.id must be a UUID string") from e
-
-    fields_set = _fields_set(event)
+        raise ValueError("event_id must be a UUID string") from e
 
     with SessionLocal() as db:
-        row: EventRow | None = (
+        row = (
             db.query(EventRow)
-            .filter(EventRow.id == event_uuid, EventRow.user_id == user_id)
+            .filter(
+                EventRow.id == event_uuid,
+                or_(
+                    EventRow.client_id == user_id,
+                    EventRow.provider_id == user_id,
+                ),
+            )
             .one_or_none()
         )
+
         if not row:
             raise ValueError("event not found")
 
-        # Scalars
-        if getattr(event, "title", None) is not None:
-            row.title = event.title
-        if getattr(event, "description", None) is not None:
-            row.description = event.description
-        if getattr(event, "status", None) is not None:
-            row.status = str(event.status)
-
-        if getattr(event, "allow_conflicts", None) is not None:
-            row.allow_conflicts = bool(event.allow_conflicts)
-
-        if getattr(event, "timezone", None) is not None:
-            row.timezone = event.timezone
-        if getattr(event, "location", None) is not None:
-            row.location = event.location
-
-        if getattr(event, "delete_scope", None) is not None:
-            row.delete_scope = event.delete_scope
-
-        if getattr(event, "send_updates", None) is not None:
-            row.send_updates = bool(event.send_updates)
-
-        if getattr(event, "notify", None) is not None:
-            row.notify = bool(event.notify)
-
-        if gcal_event_id is not None:
-            row.gcal_event_id = gcal_event_id
-
-        if raw is not None:
-            row.raw = jsonify(raw)
-
-        # Nested JSON payloads (ensure JSON-safe)
-        if getattr(event, "participants", None) is not None:
-            participants = event.participants or []
-            row.participants = jsonify(
-                [
-                    (p.model_dump(mode="json", exclude_none=True) if hasattr(p, "model_dump") else jsonify(p))
-                    for p in participants
-                ]
-            )
-
-        if getattr(event, "reminders", None) is not None:
-            reminders = event.reminders or []
-            row.reminders = jsonify(
-                [
-                    (r.model_dump(mode="json", exclude_none=True) if hasattr(r, "model_dump") else jsonify(r))
-                    for r in reminders
-                ]
-            )
-
-        if getattr(event, "recurrence", None) is not None:
-            rec = event.recurrence
-            row.recurrence = jsonify(rec.model_dump(mode="json", exclude_none=True) if hasattr(rec, "model_dump") else rec)
-        elif "recurrence" in fields_set:
-            # explicit recurrence=None => clear
-            row.recurrence = None
-
-        # Time fields: accept both naming schemes
-        if getattr(event, "all_day", None) is not None:
-            row.all_day = bool(event.all_day)
-
-        start_in = getattr(event, "start_at", None)
-        end_in = getattr(event, "end_at", None)
-        dt_in = getattr(event, "datetime", None)
-        enddt_in = getattr(event, "end_datetime", None)
-
-        if start_in is not None or dt_in is not None:
-            row.start_at = _to_dt(start_in or dt_in)
-        if end_in is not None or enddt_in is not None:
-            row.end_at = _to_dt(end_in or enddt_in)
-
-        if getattr(event, "date", None) is not None:
-            row.date = _to_date(event.date)
-        if getattr(event, "end_date", None) is not None:
-            row.end_date = _to_date(event.end_date)
-
-        # Explicit clears (honor “provided but None”)
-        if "start_at" in fields_set and getattr(event, "start_at", None) is None:
-            row.start_at = None
-        if "end_at" in fields_set and getattr(event, "end_at", None) is None:
-            row.end_at = None
-        if "datetime" in fields_set and getattr(event, "datetime", None) is None:
-            row.start_at = None
-        if "end_datetime" in fields_set and getattr(event, "end_datetime", None) is None:
-            row.end_at = None
-        if "date" in fields_set and getattr(event, "date", None) is None:
-            row.date = None
-        if "end_date" in fields_set and getattr(event, "end_date", None) is None:
-            row.end_date = None
-
-        # Validate final shape
-        if row.all_day:
-            if row.date is None or row.end_date is None:
-                raise ValueError("all_day=True requires date and end_date")
-            if row.start_at is not None or row.end_at is not None:
-                raise ValueError("all_day=True cannot have start_at/end_at")
-            if row.end_date <= row.date:
-                raise ValueError("end_date must be > date")
-        else:
-            if row.start_at is None or row.end_at is None:
-                raise ValueError("all_day=False requires start_at and end_at")
-            if row.date is not None or row.end_date is not None:
-                raise ValueError("all_day=False cannot have date/end_date")
-            if row.end_at <= row.start_at:
-                raise ValueError("end_at must be > start_at")
-
-        if row.delete_scope not in ("single", "series", "this_and_following"):
-            raise ValueError("delete_scope must be single|series|this_and_following")
-
-        try:
-            db.add(row)
-            db.commit()
-            return str(row.id)
-        except IntegrityError:
-            db.rollback()
-            raise
+        row.gcal_event_id = gcal_event_id
+        db.commit()

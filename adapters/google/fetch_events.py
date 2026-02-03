@@ -61,7 +61,7 @@ def get_future_events_verified(
     with SessionLocal() as db:
         q = (
             db.query(EventRow)
-            .filter(EventRow.user_id == user_id)
+            .filter(EventRow.client_id == user_id)
             .filter(EventRow.status != "deleted")
             .filter(
                 or_(

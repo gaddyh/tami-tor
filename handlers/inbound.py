@@ -19,7 +19,7 @@ from handlers.registry import dispatch, wa_phone_id_registry
 from models.event_item import EventItem
 from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
-from db.persist_event import persist_event_item, update_event_item
+from db.persist_event import persist_event_item, update_event_gcal
 from db.fetch_events import fetch_future_events_as_dicts
 from tools.event_booking import format_events_message_he
 
@@ -214,6 +214,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 event = EventItem(
                     item_id=None,
                     command="create",
+                    service_id=service_id,
                     title=service_name + " - " + (client_name or "") + " - " + (wi.client_id or ""),
                     description=None,
                     start_at=chosen_start,
@@ -228,11 +229,11 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     timezone=tz,
                 ) 
                 user_id = business.get_default_provider_id()
-                event_id = persist_event_item(user_id=user_id, event=event)
+                event_id = persist_event_item(provider_id=user_id,client_id=wi.client_id, event=event)
                 res = create_event(user_id=user_id, event=event)
                 if res.get("ok"):
                     gcal_event_id = res.get("item_id")
-                    update_event_item(user_id=user_id, event=event, event_id=event_id, gcal_event_id=gcal_event_id)
+                    update_event_gcal(user_id=wi.client_id, event_id=event_id, gcal_event_id=gcal_event_id)
                 elif res.get("conflicts"):
                     conflicts = res.get("conflicts") #TODO
                 else:
