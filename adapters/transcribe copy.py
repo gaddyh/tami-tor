@@ -1,46 +1,25 @@
 import os
 import tempfile
 import requests
+from typing import Optional
 from dotenv import load_dotenv
 from adapters.primitivies import MediaInfo
 from observability.obs import instrument_io
 from google.oauth2 import service_account
 
-import ffmpeg
-from google.cloud import speech_v1p1beta1 as speech
-
 load_dotenv(".venv/.env")
 
 FB_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN")
 
-SPEECH_CREDS_PATH = "/etc/secrets/tami-463501-a8053925ce03.json"
-
-# Curated hints for appointment scheduling (nails/barber)
-# Prefer phrases + morphological variants over single very-common words.
-HE_APPT_HINTS = [
-    "תור", "תורים",
-    "תור פנוי", "יש תור פנוי", "אין תור פנוי",
-    "פנוי", "פנויה", "פנויים",
-    "לקבוע תור", "לקבוע", "קביעת תור",
-    "מחר", "היום", "מחר בבוקר", "היום בערב",
-    "בשעה", "בעשר", "באחת", "בחמש",  # add your common hours phrasing if you see patterns
-    "מחיר", "כמה עולה",
-    # nails
-    "מניקור", "פדיקור", "לק ג׳ל", "ג׳ל", "בנייה", "הסרה",
-    # barber
-    "תספורת", "ספר", "ברבר", "זקן", "פייד", "תספורת זקן",
-    # ownership / possession (your example)
-    "שלי", "זה שלי",
-]
-
-# Boost guidance: 5–15 tends to be sane. Higher can cause false positives. :contentReference[oaicite:1]{index=1}
-HE_HINT_BOOST = 10.0
-
+import ffmpeg
+from google.cloud import speech_v1p1beta1 as speech
 
 @instrument_io(
     name="transcribe_opus_file",
     meta={"agent": "tami", "operation": "transcribe_opus_file", "tool": "transcribe_opus_file", "schema": "input_path"},
-    input_fn=lambda input_path: {"input_path": input_path},
+    input_fn=lambda input_path: {
+        "input_path": input_path
+    },
     output_fn=lambda result: result,
     redact=True,
 )
@@ -49,59 +28,31 @@ def transcribe_opus_file(input_path: str) -> str:
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as wav_file:
         wav_path = wav_file.name
 
-    # Convert WhatsApp opus/ogg/etc -> WAV (LINEAR16)
-    # Keep 48kHz (WhatsApp voice notes are often 48k opus) instead of downsampling to 16k.
-    try:
-        (
-            ffmpeg
-            .input(input_path)
-            .output(
-                wav_path,
-                ac=1,
-                ar=48000,  # was 16000
-                format="wav",
-                acodec="pcm_s16le",
-            )
-            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
-        )
+    # Convert .opus/.mp3/.ogg to .wav
+    ffmpeg.input(input_path).output(
+        wav_path, ac=1, ar=16000, format='wav', acodec='pcm_s16le'
+    ).run(overwrite_output=True)
 
+    try:
         with open(wav_path, "rb") as audio_file:
             content = audio_file.read()
 
         audio = speech.RecognitionAudio(content=content)
-
-        speech_context = speech.SpeechContext(
-            phrases=HE_APPT_HINTS,
-            boost=HE_HINT_BOOST,
-        )
-
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             language_code="he-IL",
-            sample_rate_hertz=48000,  # match what we produced
-            enable_automatic_punctuation=True,
-            speech_contexts=[speech_context],
         )
-
-        speech_creds = service_account.Credentials.from_service_account_file(SPEECH_CREDS_PATH)
+        
+        speech_creds = service_account.Credentials.from_service_account_file(
+            "/etc/secrets/tami-463501-a8053925ce03.json"
+        )
         client = speech.SpeechClient(credentials=speech_creds)
-
         response = client.recognize(config=config, audio=audio)
-
-        # Safety: avoid index errors / empty results
-        transcripts = []
-        for result in response.results:
-            if result.alternatives:
-                transcripts.append(result.alternatives[0].transcript)
-
-        return " ".join(transcripts).strip()
-
+        return " ".join(
+            result.alternatives[0].transcript for result in response.results
+        )
     finally:
-        try:
-            os.remove(wav_path)
-        except FileNotFoundError:
-            pass
-
+        os.remove(wav_path)
 
 def get_facebook_media_url(media_id: str, access_token: str) -> str:
     url = f"https://graph.facebook.com/v16.0/{media_id}"
@@ -109,7 +60,6 @@ def get_facebook_media_url(media_id: str, access_token: str) -> str:
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()["url"]
-
 
 def download_media_to_tempfile(media_url: str, access_token: str, mime_type: str) -> str:
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -123,7 +73,7 @@ def download_media_to_tempfile(media_url: str, access_token: str, mime_type: str
         "audio/mpeg": ".mp3",
         "audio/wav": ".wav",
         "audio/ogg": ".ogg",
-        "audio/webm": ".webm",
+        "audio/webm": ".webm"
     }.get(mime_type, ".mp3")
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
@@ -131,14 +81,13 @@ def download_media_to_tempfile(media_url: str, access_token: str, mime_type: str
             tmp_file.write(chunk)
         return tmp_file.name
 
-
 @instrument_io(
     name="transcribe_facebook_audio",
     meta={"agent": "tami", "operation": "transcribe_facebook_audio", "tool": "transcribe_facebook_audio", "schema": "MediaInfo.v1"},
     input_fn=lambda media_info: {
         "media_info": (media_info.model_dump() if hasattr(media_info, "model_dump")
-                       else media_info.dict() if hasattr(media_info, "dict")
-                       else media_info)
+                  else media_info.dict() if hasattr(media_info, "dict")
+                  else media_info)
     },
     output_fn=lambda result: result,
     redact=True,
@@ -156,10 +105,12 @@ def transcribe_facebook_audio(media_info: MediaInfo) -> str:
 
 
 if __name__ == "__main__":
+
     media = MediaInfo(
         media_id="1052689170159365",
         mime_type="audio/ogg; codecs=opus",
-        url="",
+        url=""
     )
+
     result = transcribe_facebook_audio(media)
     print("Transcription:", result)
