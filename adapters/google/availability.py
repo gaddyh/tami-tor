@@ -215,6 +215,9 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
         else:
             end_dt = end_dt.astimezone(tz)
 
+    if end_dt <= start_dt:
+        end_dt = (start_dt + timedelta(days=1))
+
     body = {
         "items": [{"id": "primary"}],
         "timeMin": start_dt.isoformat(),
@@ -236,7 +239,10 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
     # Pass datetime objects instead of strings to find_free_slots
     free_slots = find_free_slots(busy_periods, start_dt, end_dt, timezone)
     print(f"Found {len(free_slots)} free slots:", free_slots)
-    
+    if not free_slots:
+        start_dt = (start_dt - timedelta(days=1))
+        end_dt = (end_dt + timedelta(days=1))
+        return get_available_slots(user_id, timezone, start_dt.isoformat(), end_dt.isoformat(), duration)
     slots_by_day = split_slots_by_day(free_slots, duration)
     #slots_by_day = limit_slots_by_day(slots_by_day)
     print(f"Slots by day: {len(slots_by_day)} days")
