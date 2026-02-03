@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Callable, Optional
+from datetime import datetime, timedelta
+from typing import Optional, Any, Callable
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session as OrmSession
 
 from db.session import SessionLocal
@@ -21,6 +21,18 @@ from observability.obs import span_attrs
 from apps.config import WORK_STALE_SECONDS  # reuse your knob as “stale seconds”
 LOCK_TTL_SECONDS = int(WORK_STALE_SECONDS)
 MAX_ATTEMPTS = 5
+
+
+def json_safe(v: Any) -> Any:
+    """Best-effort JSON-safe conversion for logging/telemetry payloads."""
+    if v is None:
+        return None
+    if isinstance(v, (str, int, float, bool)):
+        return v
+    if isinstance(v, datetime):
+        return v.isoformat()
+    # UUID / Enum / anything else -> string
+    return str(v)
 
 
 def _backoff_seconds(attempt: int) -> int:
@@ -99,7 +111,6 @@ def schedule_retry(wi: WorkItem, *, error: str) -> datetime:
 
 import asyncio
 import inspect
-from typing import Any, Callable
 
 
 def call_handler(handler: Callable[..., Any], db, wi) -> None:
@@ -123,9 +134,9 @@ def main() -> None:
 
         emit_event(
             event="WORK_DEQUEUED",
-            inbound_id=str(work_id),
+            inbound_id=json_safe(work_id),
             type="WORKER",
-            meta={"work_id": str(work_id), "where": "worker"},
+            meta={"work_id": json_safe(work_id), "where": "worker"},
         )
 
         wi: Optional[WorkItem] = None
@@ -139,34 +150,37 @@ def main() -> None:
                 if not wi:
                     continue
 
-                business_id = wi.business_id
-                client_id = wi.client_id
+                business_id = json_safe(wi.business_id)
+                client_id = json_safe(wi.client_id)
+                wi_work_id = json_safe(wi.work_id)
+                wi_kind = json_safe(wi.kind)
+                wi_attempt = int(wi.attempts) if wi.attempts is not None else 0
 
                 with span_attrs(
                     "wa.job",
                     as_type="span",
-                    user_id=wi.client_id,
-                    business_id=wi.business_id,
-                    work_id=wi.work_id,
-                    kind=wi.kind,
-                    attempt=wi.attempts,
+                    user_id=json_safe(wi.client_id),
+                    business_id=business_id,
+                    work_id=wi_work_id,
+                    kind=wi_kind,
+                    attempt=wi_attempt,
                 ):
                     emit_event(
                         event="WORK_CLAIMED",
-                        inbound_id=str(wi.work_id),
-                        type=wi.kind,
-                        business_id=wi.business_id,
-                        client_id=wi.client_id,
-                        attempt=int(wi.attempts),
+                        inbound_id=wi_work_id,
+                        type=wi_kind,
+                        business_id=business_id,
+                        client_id=client_id,
+                        attempt=wi_attempt,
                         meta={
-                            "work_id": str(wi.work_id),
-                            "kind": wi.kind,
+                            "work_id": wi_work_id,
+                            "kind": wi_kind,
                         },
                     )
 
                     # Lock only if we have business/client context
                     if wi.business_id and wi.client_id:
-                        acquired, lock_token = acquire_lock(wi.business_id, wi.client_id)
+                        acquired, lock_token = acquire_lock(str(wi.business_id), str(wi.client_id))
                         if not acquired:
                             run_after = now_israel() + timedelta(seconds=1)
                             wi.status = "pending"
@@ -176,13 +190,13 @@ def main() -> None:
 
                             emit_event(
                                 event="LOCK_MISSED",
-                                inbound_id=str(wi.work_id),
-                                type=wi.kind,
-                                business_id=wi.business_id,
-                                client_id=wi.client_id,
-                                attempt=int(wi.attempts),
+                                inbound_id=wi_work_id,
+                                type=wi_kind,
+                                business_id=business_id,
+                                client_id=client_id,
+                                attempt=wi_attempt,
                                 meta={
-                                    "work_id": str(wi.work_id),
+                                    "work_id": wi_work_id,
                                     "run_after": run_after.isoformat(),
                                 },
                             )
@@ -191,12 +205,12 @@ def main() -> None:
 
                         emit_event(
                             event="LOCK_ACQUIRED",
-                            inbound_id=str(wi.work_id),
-                            type=wi.kind,
-                            business_id=wi.business_id,
-                            client_id=wi.client_id,
-                            attempt=int(wi.attempts),
-                            meta={"work_id": str(wi.work_id)},
+                            inbound_id=wi_work_id,
+                            type=wi_kind,
+                            business_id=business_id,
+                            client_id=client_id,
+                            attempt=wi_attempt,
+                            meta={"work_id": wi_work_id},
                         )
 
                     handler = WORK_HANDLERS.get(wi.kind)
@@ -205,12 +219,12 @@ def main() -> None:
                         db.commit()
                         emit_event(
                             event="WORK_UNKNOWN_KIND",
-                            inbound_id=str(wi.work_id),
-                            type=wi.kind,
-                            business_id=wi.business_id,
-                            client_id=wi.client_id,
-                            attempt=int(wi.attempts),
-                            meta={"work_id": str(wi.work_id), "kind": wi.kind},
+                            inbound_id=wi_work_id,
+                            type=wi_kind,
+                            business_id=business_id,
+                            client_id=client_id,
+                            attempt=wi_attempt,
+                            meta={"work_id": wi_work_id, "kind": wi_kind},
                         )
                         continue
 
@@ -221,21 +235,21 @@ def main() -> None:
 
                     emit_event(
                         event="WORK_DONE",
-                        inbound_id=str(wi.work_id),
-                        type=wi.kind,
-                        business_id=wi.business_id,
-                        client_id=wi.client_id,
-                        attempt=int(wi.attempts),
-                        meta={"work_id": str(wi.work_id), "kind": wi.kind},
+                        inbound_id=wi_work_id,
+                        type=wi_kind,
+                        business_id=business_id,
+                        client_id=client_id,
+                        attempt=wi_attempt,
+                        meta={"work_id": wi_work_id, "kind": wi_kind},
                     )
 
         except NonRetryableError as e:
             err = str(e)
             emit_event(
                 event="WORK_FAILED",
-                inbound_id=str(work_id),
+                inbound_id=json_safe(work_id),
                 type="WORKER",
-                meta={"work_id": str(work_id), "error": err, "kind": "non_retryable"},
+                meta={"work_id": json_safe(work_id), "error": err, "kind": "non_retryable"},
             )
             with SessionLocal() as db:
                 o = db.get(WorkItem, work_id)
@@ -247,9 +261,9 @@ def main() -> None:
             err = str(e)
             emit_event(
                 event="WORK_ERROR",
-                inbound_id=str(work_id),
+                inbound_id=json_safe(work_id),
                 type="WORKER",
-                meta={"work_id": str(work_id), "error": err},
+                meta={"work_id": json_safe(work_id), "error": err},
             )
 
             with SessionLocal() as db:
@@ -261,12 +275,12 @@ def main() -> None:
                     db.commit()
                     emit_event(
                         event="WORK_DLQ",
-                        inbound_id=str(work_id),
-                        type=o.kind if getattr(o, "kind", None) else "WORKER",
-                        business_id=o.business_id,
-                        client_id=o.client_id,
+                        inbound_id=json_safe(work_id),
+                        type=json_safe(o.kind) if getattr(o, "kind", None) else "WORKER",
+                        business_id=json_safe(o.business_id),
+                        client_id=json_safe(o.client_id),
                         attempt=int(o.attempts),
-                        meta={"work_id": str(work_id), "error": err},
+                        meta={"work_id": json_safe(work_id), "error": err},
                     )
                 else:
                     run_after = schedule_retry(o, error=err)
@@ -274,13 +288,13 @@ def main() -> None:
                     enqueue_work(str(o.work_id))
                     emit_event(
                         event="WORK_RETRY_SCHEDULED",
-                        inbound_id=str(work_id),
-                        type=o.kind if getattr(o, "kind", None) else "WORKER",
-                        business_id=o.business_id,
-                        client_id=o.client_id,
+                        inbound_id=json_safe(work_id),
+                        type=json_safe(o.kind) if getattr(o, "kind", None) else "WORKER",
+                        business_id=json_safe(o.business_id),
+                        client_id=json_safe(o.client_id),
                         attempt=int(o.attempts),
                         meta={
-                            "work_id": str(work_id),
+                            "work_id": json_safe(work_id),
                             "run_after": run_after.isoformat(),
                         },
                     )
@@ -289,7 +303,7 @@ def main() -> None:
 
         finally:
             if lock_token and business_id and client_id:
-                release_lock(business_id, client_id, lock_token)
+                release_lock(str(business_id), str(client_id), lock_token)
 
 
 if __name__ == "__main__":
