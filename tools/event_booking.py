@@ -3,6 +3,7 @@ from typing import Any, Optional, Literal, List, Dict
 from observability.obs import span_attrs, mark_error, instrument_io
 from models.event_item import EventItem
 from adapters.google.process_event import _process_event
+from observability.langfuse_client import langfuse
 
 def summarize(result: dict):
     return result
@@ -32,6 +33,12 @@ def create_event(user_id: str, event: EventItem):
         s.update(input={"args": redact(_event_dict)})
         try:
             out = _process_event(user_id, event)
+            langfuse.create_score(
+                trace_id=user_id,
+                name="event_created",
+                value=1,
+                comment=f"Event created"
+            )
             s.update(output=summarize(out))
             return out
         except Exception as e:

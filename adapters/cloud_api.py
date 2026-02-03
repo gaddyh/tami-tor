@@ -11,6 +11,7 @@ import httpx
 logger = logging.getLogger(__name__)
 import os
 import uuid
+from observability.langfuse_client import langfuse
 
 wa_token = os.environ["WHATSAPP_ACCESS_TOKEN"]
 
@@ -197,6 +198,12 @@ class CloudAPIAdapter():
             response = await client.post(url, json=payload, headers=headers)
 
         if response.status_code == 200:
+            langfuse.create_score(
+                trace_id=recipient,
+                name="message_sent",
+                value=1,
+                comment=f"Message sent"
+            )
             return {"status": "sent", "response": response.json()}
         else:
             logger.error(f"Failed to send message: {response.status_code} - {response.text}")
