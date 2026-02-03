@@ -258,6 +258,8 @@ def main() -> None:
                     db.commit()
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             err = str(e)
             emit_event(
                 event="WORK_ERROR",
