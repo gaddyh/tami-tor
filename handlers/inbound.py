@@ -143,7 +143,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     duration=state.data.duration,
                 )
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
-                state.data.chunked = chunked.model_dump()
+                state.data.chunked = jsonify(chunked.model_dump(mode="json"))
                 state.data.chunked_index = 0
 
                 payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
@@ -233,7 +233,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         message=eff.get("text", ""),
                     )
 
-        session.state_json = state.model_dump(mode="json")
+        session.state_json = jsonify(state.model_dump(mode="json"))
         if state.step == SessionStep.DONE:
             debug = session.state_json
             session.state_json = {}
