@@ -170,7 +170,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         "work_id": str(wi.work_id),
                         "to_phone": str(wi.client_id),
                         "slots_total": len(items or []),
-                        "send_ok": bool(send_result),
+                        "send_ok": True,
                         "state": state.model_dump(mode="json"),
                     },
                 )
@@ -195,7 +195,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     meta={
                         "work_id": str(wi.work_id),
                         "to_phone": wi.client_id,
-                        "state": jsonify(state.model_dump()),
+                        "state": jsonify(state.model_dump(mode="json")),
                     },
                 )
 
