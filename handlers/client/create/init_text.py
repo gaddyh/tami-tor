@@ -50,15 +50,15 @@ def init_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
 
         state.step = SessionStep.SLOTS_PICK
         state.expected_type = InputType.LIST_ID
-        if effects.count() == 0:
-            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})
+        if len(effects) == 0:
+            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": []})
 
     if state.data.bootstrap.has_any_date_or_time():
         timezone = ctx.get("timezone") or "Asia/Jerusalem"
         state.data.bootstrap_start_dt, state.data.bootstrap_end_dt = state.data.bootstrap.to_datetimes(timezone)
         state.step = SessionStep.SLOTS_PICK
         state.expected_type = InputType.LIST_ID
-        if effects.count() == 0:
-            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": [   ]})    
+        if len(effects) == 0:
+            effects.append({"kind": "SEND_SLOTS_LIST", "to": "client", "rows": []})    
         
     return HandlerResult(state=state, effects=effects)
