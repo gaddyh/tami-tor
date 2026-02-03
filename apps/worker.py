@@ -90,22 +90,22 @@ def claim_work(db: OrmSession, work_id: str) -> Optional[WorkItem]:
 def mark_done(wi: WorkItem) -> None:
     wi.status = "done"
     wi.last_error = None
-    wi.updated_at = now_israel()
+    wi.updated_at = now_israel().isoformat()
 
 
 def mark_failed(wi: WorkItem, *, error: str) -> None:
     wi.status = "failed"
     wi.last_error = error
-    wi.updated_at = now_israel()
+    wi.updated_at = now_israel().isoformat()
 
 
 def schedule_retry(wi: WorkItem, *, error: str) -> datetime:
     delay = _backoff_seconds(int(wi.attempts))
     run_after = now_israel() + timedelta(seconds=delay)
     wi.status = "pending"
-    wi.run_after = run_after
+    wi.run_after = run_after.isoformat()
     wi.last_error = error
-    wi.updated_at = now_israel()
+    wi.updated_at = now_israel().isoformat()
     return run_after
 
 
