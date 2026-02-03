@@ -132,7 +132,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 )
 
             if kind == "FETCH_EVENTS" and eff.get("to") == "client":
-                events = fetch_future_events_as_dicts(user_id=user_id, limit=10)
+                events = fetch_future_events_as_dicts(user_id=wi.client_id, limit=10)
                 message = format_events_message_he(events)
                 await adapter.send_message(
                     recipient=wi.client_id,
