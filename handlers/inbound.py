@@ -21,6 +21,28 @@ from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from db.persist_event import persist_event_item, update_event_item
 
+
+from datetime import datetime, date
+from uuid import UUID
+from enum import Enum
+from typing import Any, Mapping
+
+def jsonify(x: Any) -> Any:
+    if x is None or isinstance(x, (str, int, float, bool)):
+        return x
+    if isinstance(x, (datetime, date)):
+        return x.isoformat()
+    if isinstance(x, UUID):
+        return str(x)
+    if isinstance(x, Enum):
+        return x.value
+    if isinstance(x, Mapping):
+        return {str(k): jsonify(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple, set)):
+        return [jsonify(v) for v in x]
+    return str(x)
+
+
 @instrument_io(
     name="handle_process_inbound",
     meta={"operation": "handle_process_inbound"},
@@ -131,18 +153,18 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     event="INBOUND_SLOTS_LIST_SENT",
                     inbound_id=str(wi.ref_id),
                     type="INBOUND",
-                    business_id=session.business_id,
-                    client_id=session.client_id,
+                    business_id=str(session.business_id),
+                    client_id=str(session.client_id),
                     session_id=str(session.session_id),
                     meta={
                         "work_id": str(wi.work_id),
-                        "to_phone": wi.client_id,
+                        "to_phone": str(wi.client_id),
                         "slots_total": len(items or []),
-                        # keep it light; don’t dump full API responses into metadata
                         "send_ok": bool(send_result),
-                        "state": state.model_dump(),
+                        "state": state.model_dump(mode="json"),
                     },
                 )
+
 
             if kind == "SEND_CONFIRM_BUTTONS" and eff.get("to") == "client":
                 slot = state.data.chosen_slot
@@ -163,7 +185,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     meta={
                         "work_id": str(wi.work_id),
                         "to_phone": wi.client_id,
-                        "state": state.model_dump(),
+                        "state": jsonify(state.model_dump()),
                     },
                 )
 
@@ -222,7 +244,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
             session_id=str(session.session_id),
             meta={
                 "work_id": str(wi.work_id),
-                "state": session.state_json,
+                "state": jsonify(session.state_json),
             },
         )
 
@@ -242,7 +264,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 "work_id": str(wi.work_id),
                 "ref_id": str(wi.ref_id),
                 "error": str(e),
-                "state": session.state_json,
+                "state": jsonify(session.state_json),
             },
         )
         raise
