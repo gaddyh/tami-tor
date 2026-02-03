@@ -7,4 +7,5 @@ from models.work_item import WorkItem  # noqa: F401
 from models.business import Business  # noqa: F401
 from models.business_scheduled_message import BusinessScheduledMessage  # noqa: F401
 from models.google_oauth import GoogleToken, GoogleAuthState  # noqa: F401
+from models.calendar_event import EventItem
 

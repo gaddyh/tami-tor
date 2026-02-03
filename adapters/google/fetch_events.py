@@ -65,14 +65,14 @@ def get_future_events_verified(
             .filter(EventRow.status != "deleted")
             .filter(
                 or_(
-                    and_(EventRow.all_day == False, EventRow.datetime >= now_utc),
+                    and_(EventRow.all_day == False, EventRow.start_at >= now_utc),
                     and_(EventRow.all_day == True, EventRow.date >= today),
                 )
             )
             .order_by(
                 # keep ordering stable: soonest first
                 EventRow.all_day.asc(),
-                EventRow.datetime.asc().nullslast(),
+                EventRow.start_at.asc().nullslast(),
                 EventRow.date.asc().nullslast(),
             )
             .limit(limit)
@@ -144,13 +144,13 @@ def get_future_events_verified(
                     if g_end_iso:
                         row.end_date = date.fromisoformat(g_end_iso)
                     # ensure timed fields cleared
-                    row.datetime = None
-                    row.end_datetime = None
+                    row.start_at = None
+                    row.end_at = None
                 else:
                     if g_start_iso:
-                        row.datetime = datetime.fromisoformat(g_start_iso)
+                        row.start_at = datetime.fromisoformat(g_start_iso)
                     if g_end_iso:
-                        row.end_datetime = datetime.fromisoformat(g_end_iso)
+                        row.end_at = datetime.fromisoformat(g_end_iso)
                     # ensure date fields cleared
                     row.date = None
                     row.end_date = None

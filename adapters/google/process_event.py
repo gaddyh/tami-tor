@@ -59,15 +59,15 @@ def build_event_body(event: EventItem) -> dict:
         body["start"] = {"date": d0_obj.isoformat()}
         body["end"]   = {"date": d1_obj.isoformat()}
     else:
-        if event.datetime:
+        if event.start_at:
             tz = ZoneInfo(tz_name)
-            start_dt = _to_rfc3339(event.datetime, default_tz=tz)
+            start_dt = _to_rfc3339(event.start_at, default_tz=tz)
 
-            if event.end_datetime:
-                end_dt = _to_rfc3339(event.end_datetime, default_tz=tz)
+            if event.end_at:
+                end_dt = _to_rfc3339(event.end_at, default_tz=tz)
             else:
                 # default duration: +1 hour
-                start_native = event.datetime
+                start_native = event.start_at
                 if isinstance(start_native, str):
                     # parse ISO; accept trailing 'Z'
                     start_native = datetime.fromisoformat(start_native.replace("Z", "+00:00"))

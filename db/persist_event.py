@@ -46,8 +46,8 @@ def persist_event_item(
     # Determine all_day + parse appropriate fields
     all_day = bool(event.all_day)
 
-    start_at = _parse_dt(event.datetime)
-    end_at = _parse_dt(event.end_datetime)
+    start_at = _parse_dt(event.start_at)
+    end_at = _parse_dt(event.end_at)
 
     start_date = _parse_date(event.date)
     end_date = _parse_date(event.end_date)
@@ -227,10 +227,10 @@ def update_event_item(
             row.all_day = bool(event.all_day)
 
         # Apply explicit time/date changes if provided
-        if event.datetime is not None:
-            row.datetime = _parse_dt(event.datetime)
-        if event.end_datetime is not None:
-            row.end_datetime = _parse_dt(event.end_datetime)
+        if event.start_at is not None:
+            row.start_at = _parse_dt(event.start_at)
+        if event.end_at is not None:
+            row.end_at = _parse_dt(event.end_at)
         if event.date is not None:
             row.date = _parse_date(event.date)
         if event.end_date is not None:
@@ -238,10 +238,10 @@ def update_event_item(
 
         # If caller explicitly set one of these fields to None (clear), honor it
         # (Pydantic v2: model_fields_set tells you it was provided)
-        if "datetime" in event.model_fields_set and event.datetime is None:
-            row.datetime = None
-        if "end_datetime" in event.model_fields_set and event.end_datetime is None:
-            row.end_datetime = None
+        if "datetime" in event.model_fields_set and event.start_at is None:
+            row.start_at = None
+        if "end_datetime" in event.model_fields_set and event.end_at is None:
+            row.end_at = None
         if "date" in event.model_fields_set and event.date is None:
             row.date = None
         if "end_date" in event.model_fields_set and event.end_date is None:
@@ -251,16 +251,16 @@ def update_event_item(
         if row.all_day:
             if row.date is None or row.end_date is None:
                 raise ValueError("all_day=True requires date and end_date")
-            if row.datetime is not None or row.end_datetime is not None:
+            if row.start_at is not None or row.end_at is not None:
                 raise ValueError("all_day=True cannot have datetime/end_datetime")
             if row.end_date <= row.date:
                 raise ValueError("end_date must be > date")
         else:
-            if row.datetime is None or row.end_datetime is None:
+            if row.start_at is None or row.end_at is None:
                 raise ValueError("all_day=False requires datetime and end_datetime")
             if row.date is not None or row.end_date is not None:
                 raise ValueError("all_day=False cannot have date/end_date")
-            if row.end_datetime <= row.datetime:
+            if row.end_at <= row.start_at:
                 raise ValueError("end_datetime must be > datetime")
 
         # Validate delete_scope
