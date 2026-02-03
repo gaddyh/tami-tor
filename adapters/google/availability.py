@@ -239,7 +239,7 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
     # Pass datetime objects instead of strings to find_free_slots
     free_slots = find_free_slots(busy_periods, start_dt, end_dt, timezone)
     print(f"Found {len(free_slots)} free slots:", free_slots)
-    if not free_slots:
+    if len(free_slots) == 0:
         start_dt = (start_dt - timedelta(days=1))
         end_dt = (end_dt + timedelta(days=1))
         return get_available_slots(user_id, timezone, start_dt.isoformat(), end_dt.isoformat(), duration)
