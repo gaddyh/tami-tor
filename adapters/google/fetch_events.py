@@ -39,7 +39,8 @@ def _gcal_dt_to_iso(gcal_dt: Optional[dict]) -> Optional[str]:
 
 def get_future_events_verified(
     *,
-    user_id: str,
+    provider_id: str,
+    client_id: str,
     limit: int = 50,
     sync_from_gcal: bool = True, # if True, update DB fields from Google event
     include_rows_without_gcal_id: bool = False,
@@ -51,17 +52,20 @@ def get_future_events_verified(
       - timed events: datetime >= now (UTC comparison; stored as timestamptz)
       - all-day events: date >= today
     """
-    if not user_id:
-        raise ValueError("user_id is required")
+    if not provider_id:
+        raise ValueError("provider_id is required")
+    if not client_id:
+        raise ValueError("client_id is required")
 
-    gcal_service = init_google_calendar(user_id)
+    gcal_service = init_google_calendar(provider_id)
     now_utc = datetime.now(timezone.utc)
     today = date.today()
 
     with SessionLocal() as db:
         q = (
             db.query(EventRow)
-            .filter(EventRow.client_id == user_id)
+            .filter(EventRow.client_id == client_id)
+            .filter(EventRow.provider_id == provider_id)
             .filter(EventRow.status != "deleted")
             .filter(
                 or_(

@@ -20,7 +20,7 @@ from models.event_item import EventItem
 from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from db.persist_event import persist_event_item, update_event_gcal
-from db.fetch_events import fetch_future_events_as_dicts
+from adapters.google.fetch_events import get_future_events_verified
 from tools.event_booking import format_events_message_he
 
 from datetime import datetime, date
@@ -73,6 +73,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     session = load_or_create_session(db, business_id=wi.business_id, client_id=wi.client_id)
     business = load_business_by_id(db, wi.business_id)
     is_provider = business.is_provider(wi.client_id)
+    provider_id = business.get_default_provider_id()
     result:HandlerResult = wa_phone_id_handler(business, is_provider, session.state_json, rawMessage, adapter)
    
     state = result.state
@@ -132,7 +133,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 )
 
             if kind == "FETCH_EVENTS" and eff.get("to") == "client":
-                events = fetch_future_events_as_dicts(user_id=wi.client_id, limit=10)
+                events = get_future_events_verified(provider_id=provider_id, client_id=wi.client_id, limit=10)
                 message = format_events_message_he(events)
                 await adapter.send_message(
                     recipient=wi.client_id,
@@ -145,7 +146,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 now = bootstrap_start_dt or now_israel()
                 end_date = bootstrap_end_dt or (now + timedelta(days=4))
                 items = get_available_slots(
-                    user_id=business.get_default_provider_id(),
+                    user_id=provider_id,
                     timezone=business.timezone,
                     start_date=now.isoformat(),
                     end_date=end_date.isoformat(),
