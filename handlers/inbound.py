@@ -213,11 +213,11 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     timezone=tz,
                 ) 
                 user_id = business.get_default_provider_id()
-                persist_event_item(user_id=user_id, event=event)
+                event_id = persist_event_item(user_id=user_id, event=event)
                 res = create_event(user_id=user_id, event=event)
                 if res.get("ok"):
-                    event_id = res.get("item_id")
-                    update_event_item(user_id=user_id, event=event, event_id=event_id)
+                    gcal_event_id = res.get("item_id")
+                    update_event_item(user_id=user_id, event=event, event_id=event_id, gcal_event_id=gcal_event_id)
                 elif res.get("conflicts"):
                     conflicts = res.get("conflicts")
                 else:
