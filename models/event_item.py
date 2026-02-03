@@ -33,12 +33,12 @@ class EventItem(BaseActionItem):
         description="If true, create/update the event even if it overlaps existing events (override double-booking)."
     )
 
-    datetime: Optional[str] = Field(
+    start_at: Optional[str] = Field(
         None,
         description="Start time in ISO8601 with timezone, e.g. '2025-11-26T14:00:00+02:00'."
     )
 
-    end_datetime: Optional[str] = Field(
+    end_at: Optional[str] = Field(
         None,
         description="End time in ISO8601 with timezone. If omitted, a default duration may be assumed."
     )
