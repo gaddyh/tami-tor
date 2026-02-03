@@ -148,8 +148,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
 
                 payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
                 res = await adapter.send_dynamic_list_message(
-                    recipient=wi.client_id,
-                    message=payload,
+                    to_phone=wi.client_id,
+                    interactive_payload=payload,
                 )
 
                 emit_event(
