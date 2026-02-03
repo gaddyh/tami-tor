@@ -4,10 +4,10 @@ from sqlalchemy.orm import Session
 from models.business import Business
 
 DEMO_BUSINESS = {
-    "business_id": "demo-salon",
-    "wa_id": "15551234567",          # WhatsApp phone_number_id
+    "business_id": "demo-tami",
+    "wa_id": "723503380842690",          # WhatsApp phone_number_id
     "agent_id": "default-agent",
-    "business_name": "Demo Beauty Salon",
+    "business_name": "Demo Tami",
     "timezone": "Asia/Jerusalem",
     "booking_policy_mode": "owner_confirm",
     "enable_digest": True,
@@ -37,27 +37,18 @@ DEMO_BUSINESS = {
             "description": "תספורת קלאסית",
             "is_active": True,
         },
-        {
-            "id": "color",
-            "name": "צבע",
-            "duration_min": 90,
-            "buffer_min": 10,
-            "price": 350,
-            "description": "צביעת שיער",
-            "is_active": True,
-        },
     ],
 
     "providers_json": [
         {
-            "provider_id": "owner",
+            "provider_id": "972501234567",
             "display_name": "בעלת העסק",
             "email": "owner@example.com",
             "phone": "+972501234567",
             "timezone": "Asia/Jerusalem",
             "google_calendar_id": "primary",
             "is_active": True,
-            "specialties": ["haircut", "color"],
+            "specialties": ["haircut"],
         }
     ],
 }

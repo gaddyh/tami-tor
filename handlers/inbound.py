@@ -151,6 +151,12 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     end_date=end_date.isoformat(),
                     duration=state.data.duration,
                 )
+                if len(items) == 0:
+                    await adapter.send_message(
+                        recipient=wi.client_id,
+                        message="אין זמינות",
+                    )
+                    return
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
                 state.data.chunked = jsonify(chunked.model_dump(mode="json"))
                 state.data.chunked_index = 0

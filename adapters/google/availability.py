@@ -244,6 +244,8 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
         now = now_israel()
         start_dt = max(start_dt - timedelta(days=1), now)
         end_dt = (end_dt + timedelta(days=2))
+        if end_dt - start_dt > timedelta(days=24):
+            return []
         return get_available_slots(user_id, timezone, start_dt.isoformat(), end_dt.isoformat(), duration)
     slots_by_day = split_slots_by_day(free_slots, duration)
     #slots_by_day = limit_slots_by_day(slots_by_day)
