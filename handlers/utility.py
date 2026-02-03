@@ -152,6 +152,7 @@ def output_fn(result):
 def handle_media(content):
     if content.type == "audio":
         text = transcribe_facebook_audio(content.media)
+        content.type = "text"
         content.text = f"{text}"
 
 @instrument_io(
