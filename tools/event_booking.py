@@ -16,7 +16,7 @@ def redact(event: EventItem):
     input_fn=lambda user_id, event: {
         "user_id": user_id,
         # ↓ serialize Pydantic model for the instrumentation layer
-        "event": (event.model_dump() if hasattr(event, "model_dump")
+        "event": (event.model_dump(mode="json") if hasattr(event, "model_dump")
                   else event.dict() if hasattr(event, "dict")
                   else event)
     },
@@ -26,7 +26,7 @@ def redact(event: EventItem):
 def create_event(user_id: str, event: EventItem):
     with span_attrs("tool.create_event", agent="tami", operation="tool", tool="create_event") as s:
         # ↓ serialize before redaction/logging to avoid .items() on a model
-        _event_dict = (event.model_dump() if hasattr(event, "model_dump")
+        _event_dict = (event.model_dump(mode="json") if hasattr(event, "model_dump")
                        else event.dict() if hasattr(event, "dict")
                        else event)
         s.update(input={"args": redact(_event_dict)})

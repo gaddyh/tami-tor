@@ -8,6 +8,26 @@ from db.session import SessionLocal
 from models.calendar_event import EventItem as EventRow  # SQLAlchemy model
 import uuid as uuid_lib
 
+from datetime import datetime, date
+from uuid import UUID
+from enum import Enum
+from typing import Any, Mapping
+
+def jsonify(x: Any) -> Any:
+    if x is None or isinstance(x, (str, int, float, bool)):
+        return x
+    if isinstance(x, (datetime, date)):
+        return x.isoformat()
+    if isinstance(x, UUID):
+        return str(x)
+    if isinstance(x, Enum):
+        return x.value
+    if isinstance(x, Mapping):
+        return {str(k): jsonify(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple, set)):
+        return [jsonify(v) for v in x]
+    return str(x)
+
 def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     if value is None:
         return None
@@ -74,16 +94,23 @@ def persist_event_item(
 
     # Convert nested pydantic objects to JSONable dicts
     participants_json = (
-        [p.model_dump(exclude_none=True) for p in (event.participants or [])]
+        [p.model_dump(mode="json", exclude_none=True) for p in (event.participants or [])]
         if event.participants is not None
         else None
     )
+
     reminders_json = (
-        [r.model_dump(exclude_none=True) for r in (event.reminders or [])]
+        [r.model_dump(mode="json", exclude_none=True) for r in (event.reminders or [])]
         if event.reminders is not None
         else None
     )
-    recurrence_json = event.recurrence.model_dump(exclude_none=True) if event.recurrence else None
+
+    recurrence_json = (
+        event.recurrence.model_dump(mode="json", exclude_none=True)
+        if event.recurrence
+        else None
+    )
+
 
     with SessionLocal() as db:
         try:
@@ -116,7 +143,7 @@ def persist_event_item(
                 send_updates=bool(getattr(event, "send_updates", False)),
                 notify=bool(getattr(event, "notify", False)),
 
-                raw=raw,
+                raw=jsonify(raw),
             )
             db.add(row)
             db.flush()
@@ -208,15 +235,22 @@ def update_event_item(
 
         # raw payload (optional)
         if raw is not None:
-            row.raw = raw
+            row.raw = jsonify(raw)
 
         # Nested payloads
         if event.participants is not None:
-            row.participants = [p.model_dump(exclude_none=True) for p in event.participants]
+            row.participants = [
+                p.model_dump(mode="json", exclude_none=True)
+                for p in event.participants
+            ]
         if event.reminders is not None:
-            row.reminders = [r.model_dump(exclude_none=True) for r in event.reminders]
+            row.reminders = [
+                r.model_dump(mode="json", exclude_none=True)
+                for r in event.reminders
+            ]
         if event.recurrence is not None:
-            row.recurrence = event.recurrence.model_dump(exclude_none=True)
+            row.recurrence = event.recurrence.model_dump(mode="json", exclude_none=True)
+            
         elif event.recurrence is None and "recurrence" in event.model_fields_set:
             # explicit recurrence=None means "clear it"
             row.recurrence = None
