@@ -149,63 +149,6 @@ def instrument_io(
         return wraps(fn)(_async if is_async else _sync)
     return deco
 
-def instrument(agent: str, operation: str, **defaults: Any) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Example:
-      @instrument(agent="tasks", operation="handle", schema_version="tasks.v1")
-      def tasks_agent(...): ...
-    Works for both sync and async functions.
-    """
-    def deco(fn: Callable[P, T]) -> Callable[P, T]:
-        name = f"{agent}.{operation}"
-        base_meta = {"agent": agent, "operation": operation, **defaults}
-
-        if inspect.iscoroutinefunction(fn):
-            @wraps(fn)
-            async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                t0 = time.perf_counter()
-                with langfuse.start_as_current_span(name=name) as span:
-                    _safe_span_update(span, metadata=base_meta)
-                    try:
-                        out = await fn(*args, **kwargs)
-                        dur_ms = int((time.perf_counter() - t0) * 1000)
-                        _safe_update_current_span(metadata={"status": "ok", "duration.ms": dur_ms})
-                        return out
-                    except Exception as e:
-                        dur_ms = int((time.perf_counter() - t0) * 1000)
-                        _safe_update_current_span(
-                            metadata={"status": "error",
-                                      "error.kind": type(e).__name__,
-                                      "duration.ms": dur_ms},
-                            status_message=str(e),
-                            level="ERROR",
-                        )
-                        raise
-            return wrapper  # type: ignore[misc]
-        else:
-            @wraps(fn)
-            def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                t0 = time.perf_counter()
-                with langfuse.start_as_current_span(name=name) as span:
-                    _safe_span_update(span, metadata=base_meta)
-                    try:
-                        out = fn(*args, **kwargs)
-                        dur_ms = int((time.perf_counter() - t0) * 1000)
-                        _safe_update_current_span(metadata={"status": "ok", "duration.ms": dur_ms})
-                        return out
-                    except Exception as e:
-                        dur_ms = int((time.perf_counter() - t0) * 1000)
-                        _safe_update_current_span(
-                            metadata={"status": "error",
-                                      "error.kind": type(e).__name__,
-                                      "duration.ms": dur_ms},
-                            status_message=str(e),
-                            level="ERROR",
-                        )
-                        raise
-            return wrapper  # type: ignore[misc]
-    return deco
-
 from langfuse import propagate_attributes
 from contextlib import contextmanager
 @contextmanager
