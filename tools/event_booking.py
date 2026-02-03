@@ -37,3 +37,72 @@ def create_event(user_id: str, event: EventItem):
         except Exception as e:
             mark_error(e, kind="ToolError.process_event", span=s)
             raise
+
+from datetime import datetime, date
+from typing import Sequence
+
+
+def _fmt_dt(dt: datetime) -> str:
+    # דוגמה: ג׳ 12 מרץ, 14:30
+    return dt.strftime("%d/%m/%Y בשעה %H:%M")
+
+
+def _fmt_date(d: date) -> str:
+    # דוגמה: 12/03/2026
+    return d.strftime("%d/%m/%Y")
+
+
+def format_events_message_he(events: Sequence[dict]) -> str:
+    """
+    מקבל רשימת אירועים (dictים)
+    ומחזיר הודעה למשתמש בעברית
+    """
+
+    # ---------- אין אירועים ----------
+    if not events:
+        return (
+            "📅 אין לך אירועים עתידיים ביומן.\n\n"
+            "רוצה שאעזור לך לקבוע פגישה חדשה?"
+        )
+
+    # ---------- אירוע אחד ----------
+    if len(events) == 1:
+        e = events[0]
+
+        if e.get("all_day"):
+            when = f"{_fmt_date(date.fromisoformat(e['date']))} (כל היום)"
+        else:
+            start = datetime.fromisoformat(e["start_at"])
+            end = datetime.fromisoformat(e["end_at"])
+            when = f"{_fmt_dt(start)} – {_fmt_dt(end)}"
+
+        lines = [
+            "📅 *האירוע הקרוב שלך:*",
+            f"*{e['title']}*",
+            when,
+        ]
+
+        if e.get("location"):
+            lines.append(f"📍 {e['location']}")
+
+        return "\n".join(lines)
+
+    # ---------- כמה אירועים ----------
+    lines = ["📅 *האירועים הקרובים שלך:*"]
+
+    for i, e in enumerate(events[:5], start=1):
+        if e.get("all_day"):
+            when = f"{_fmt_date(date.fromisoformat(e['date']))} (כל היום)"
+        else:
+            start = datetime.fromisoformat(e["start_at"])
+            when = _fmt_dt(start)
+
+        lines.append(f"{i}. {when} — {e['title']}")
+
+    remaining = len(events) - 5
+    if remaining > 0:
+        lines.append(f"\n…ועוד {remaining} אירועים נוספים.")
+
+    lines.append("\nרוצה פרטים על אחד מהם, או שנקבע פגישה חדשה?")
+
+    return "\n".join(lines)

@@ -20,7 +20,8 @@ from models.event_item import EventItem
 from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from db.persist_event import persist_event_item, update_event_item
-
+from db.fetch_events import fetch_future_events_as_dicts
+from tools.event_booking import format_events_message_he
 
 from datetime import datetime, date
 from uuid import UUID
@@ -130,6 +131,14 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     },
                 )
 
+            if kind == "FETCH_EVENTS" and eff.get("to") == "client":
+                events = fetch_future_events_as_dicts(user_id=user_id, limit=10)
+                message = format_events_message_he(events)
+                await adapter.send_message(
+                    recipient=wi.client_id,
+                    message=message,
+                )
+
             if kind == "SEND_SLOTS_LIST" and eff.get("to") == "client":
                 bootstrap_start_dt = state.data.bootstrap_start_dt
                 bootstrap_end_dt = state.data.bootstrap_end_dt
@@ -219,7 +228,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     gcal_event_id = res.get("item_id")
                     update_event_item(user_id=user_id, event=event, event_id=event_id, gcal_event_id=gcal_event_id)
                 elif res.get("conflicts"):
-                    conflicts = res.get("conflicts")
+                    conflicts = res.get("conflicts") #TODO
                 else:
                     raise Exception("Failed to create event")
 
