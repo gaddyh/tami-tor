@@ -233,7 +233,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         message=eff.get("text", ""),
                     )
 
-        session.state_json = state.model_dump()
+        session.state_json = state.model_dump(mode="json")
         if state.step == SessionStep.DONE:
             debug = session.state_json
             session.state_json = {}
