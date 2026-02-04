@@ -104,8 +104,7 @@ def format_events_message_he(events: Sequence[VerifiedEvent]) -> str:
         if e.row.all_day:
             when = f"{_fmt_date(date.fromisoformat(e.row.date))} (כל היום)"
         else:
-            start = datetime.fromisoformat(e.row.start_at)
-            when = _fmt_dt(start)
+            when = _fmt_dt(e.row.start_at)
 
         lines.append(f"{i}. {when} — {e.row.title}")
 
