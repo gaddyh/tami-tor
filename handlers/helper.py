@@ -5,7 +5,7 @@ from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
 from collections.abc import Mapping
-from handlers.inbound.client.create.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse, create_whatsapp_list_message, ActionType, NavigationDirection 
+from handlers.inbound.client.create.helper import ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse, create_whatsapp_list_message, ActionType, NavigationDirection 
 
 # Updated function to return Pydantic models
 def divide_slots_into_chunks(availability_data, chunk_size=8) -> ChunkedAvailability:

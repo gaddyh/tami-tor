@@ -65,10 +65,6 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     provider_id = business.get_default_provider_id()
     result:HandlerResult = wa_phone_id_handler(business, is_provider, session.state_json, rawMessage, adapter)
    
-    # persist effect (support 1 effect for now) and enqueue. (like inbound code)
-
-    #effect
-
     state = result.state
     try:
         for eff in result.effects or []:
