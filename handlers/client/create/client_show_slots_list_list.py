@@ -5,7 +5,7 @@ from adapters.primitivies import RawMessage
 from typing import Any
 from observability.obs import instrument_io
 from handlers.utility import get_list_reply_id
-from reducers.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
+from handlers.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
 from models.availability import ChunkedAvailability, TimeSlot
 
 @instrument_io(

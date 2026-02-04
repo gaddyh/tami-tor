@@ -11,7 +11,7 @@ from adapters.google.availability import get_available_slots, divide_chunked_int
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
 from models.availability import ChunkedAvailability
-from reducers.helper import build_hebrew_slot_confirmation
+from handlers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
