@@ -19,6 +19,12 @@ tami_dev_wa_id = "816205444920021"
 tami_tor_wa_id = "982974261547358"
 
 def tami_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
+    
+    if not state_json:
+        state = init_state(rawMessage, actor=Actor.CLIENT) #TODO
+    else:
+        state = SessionState.model_validate(state_json)
+    
     effects = []
     text = rawMessage.content.text.strip()
     if "תזכיר" in text:
@@ -26,12 +32,11 @@ def tami_handler(business: Business, is_provider: bool, state_json: dict[str, An
         if bootstrap.start and bootstrap.title:
             effects.append({"kind": "CREATE_REMINDER", "title": bootstrap.title, "start": bootstrap.start, "end": bootstrap.end})
         return HandlerResult(
-            state=state_json,
+            state=state,
             effects=effects,
         )
-
     return HandlerResult(
-        state=state_json,
+        state=state,
         effects=[],
     )
 
