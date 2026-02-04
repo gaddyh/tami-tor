@@ -99,14 +99,15 @@ def format_events_message_he(events: Sequence[VerifiedEvent]) -> str:
     # ---------- כמה אירועים ----------
     lines = ["📅 *האירועים הקרובים שלך:*"]
 
-    for e,i in enumerate(events[:5], start=1):
-        if e.all_day:
-            when = f"{_fmt_date(date.fromisoformat(e.date))} (כל היום)"
+    for i, e in enumerate(events[:5], start=1):
+        e:VerifiedEvent
+        if e.row.all_day:
+            when = f"{_fmt_date(date.fromisoformat(e.row.date))} (כל היום)"
         else:
-            start = datetime.fromisoformat(e.start_at)
+            start = datetime.fromisoformat(e.row.start_at)
             when = _fmt_dt(start)
 
-        lines.append(f"{i}. {when} — {e.title}")
+        lines.append(f"{i}. {when} — {e.row.title}")
 
     remaining = len(events) - 5
     if remaining > 0:
