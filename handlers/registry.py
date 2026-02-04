@@ -6,6 +6,7 @@ from handlers.client.create.client_show_services_list_list import client_show_se
 from handlers.client.create.client_show_slots_list_list import client_show_slots_list_list
 from handlers.client.create.client_confirm_btn_btn import client_confirm_btn_btn
 from handlers.client.create.init_text import init_text
+from handlers.client.create.step_text import step_text
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from observability.obs import instrument_io
@@ -121,6 +122,18 @@ def dispatch(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Handl
 INBOUND_REGISTRY[
     (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.INIT, InputType.TEXT, InputType.TEXT)
 ] = init_text
+
+INBOUND_REGISTRY[
+    (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.SERVICE_PICK, InputType.TEXT, InputType.LIST_ID)
+] = step_text
+
+INBOUND_REGISTRY[
+    (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.SLOTS_PICK, InputType.TEXT, InputType.LIST_ID)
+] = step_text
+
+INBOUND_REGISTRY[
+    (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.CONFIRM, InputType.TEXT, InputType.BTN_ID)
+] = step_text
 
 INBOUND_REGISTRY[
     (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.SERVICE_PICK, InputType.LIST_ID, InputType.LIST_ID)

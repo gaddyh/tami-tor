@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any, Optional, Literal, List, Dict
+from adapters.google.fetch_events import VerifiedEvent, EventRow
 from observability.obs import span_attrs, mark_error, instrument_io
 from models.event_item import EventItem
 from adapters.google.process_event import _process_event
@@ -59,7 +60,7 @@ def _fmt_date(d: date) -> str:
     return d.strftime("%d/%m/%Y")
 
 
-def format_events_message_he(events: Sequence[dict]) -> str:
+def format_events_message_he(events: Sequence[VerifiedEvent]) -> str:
     """
     מקבל רשימת אירועים (dictים)
     ומחזיר הודעה למשתמש בעברית
@@ -74,23 +75,24 @@ def format_events_message_he(events: Sequence[dict]) -> str:
 
     # ---------- אירוע אחד ----------
     if len(events) == 1:
-        e = events[0]
+        v:VerifiedEvent = events[0]
+        e:EventRow = v.row
 
-        if e.get("all_day"):
-            when = f"{_fmt_date(date.fromisoformat(e['date']))} (כל היום)"
+        if e.all_day:
+            when = f"{_fmt_date(date.fromisoformat(e.date))} (כל היום)"
         else:
-            start = datetime.fromisoformat(e["start_at"])
-            end = datetime.fromisoformat(e["end_at"])
+            start = datetime.fromisoformat(e.start_at)
+            end = datetime.fromisoformat(e.end_at)
             when = f"{_fmt_dt(start)} – {_fmt_dt(end)}"
 
         lines = [
             "📅 *האירוע הקרוב שלך:*",
-            f"*{e['title']}*",
+            f"*{e.title}*",
             when,
         ]
 
-        if e.get("location"):
-            lines.append(f"📍 {e['location']}")
+        if e.location:
+            lines.append(f"📍 {e.location}")
 
         return "\n".join(lines)
 
@@ -98,13 +100,13 @@ def format_events_message_he(events: Sequence[dict]) -> str:
     lines = ["📅 *האירועים הקרובים שלך:*"]
 
     for i, e in enumerate(events[:5], start=1):
-        if e.get("all_day"):
-            when = f"{_fmt_date(date.fromisoformat(e['date']))} (כל היום)"
+        if e.all_day:
+            when = f"{_fmt_date(date.fromisoformat(e.date))} (כל היום)"
         else:
-            start = datetime.fromisoformat(e["start_at"])
+            start = datetime.fromisoformat(e.start_at)
             when = _fmt_dt(start)
 
-        lines.append(f"{i}. {when} — {e['title']}")
+        lines.append(f"{i}. {when} — {e.title}")
 
     remaining = len(events) - 5
     if remaining > 0:
