@@ -1,6 +1,10 @@
 
 from models.availability import ChunkedAvailability, SlotChunk, TimeSlot
-from typing import List, Optional
+from typing import List, Optional, Any
+from datetime import datetime, date
+from uuid import UUID
+from enum import Enum
+from collections.abc import Mapping
 from handlers.inbound.client.create.helper import handle_list_response, ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse
 
 # Updated function to return Pydantic models
@@ -245,6 +249,22 @@ def handle_whatsapp_webhook(
         print(f"Error handling webhook: {e}")
     
     return None
+
+
+def jsonify(x: Any) -> Any:
+    if x is None or isinstance(x, (str, int, float, bool)):
+        return x
+    if isinstance(x, (datetime, date)):
+        return x.isoformat()
+    if isinstance(x, UUID):
+        return str(x)
+    if isinstance(x, Enum):
+        return x.value
+    if isinstance(x, Mapping):
+        return {str(k): jsonify(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple, set)):
+        return [jsonify(v) for v in x]
+    return str(x)
 
 
 # Usage example:

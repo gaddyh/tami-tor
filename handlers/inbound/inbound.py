@@ -76,6 +76,10 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
     provider_id = business.get_default_provider_id()
     result:HandlerResult = wa_phone_id_handler(business, is_provider, session.state_json, rawMessage, adapter)
    
+    # persist effect (support 1 effect for now) and enqueue. (like inbound code)
+
+    #effect
+
     state = result.state
     try:
         for eff in result.effects or []:
@@ -103,187 +107,26 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 },
             )
 
-            if kind == "CREATE_REMINDER":
-                title = eff.get("title", "")
-                start = eff.get("start", "")
-                persist_scheduled_message(db=db,
-                    wa_id=inbound.phone_number_id,
-                    to_chat_id=wi.client_id,
-                    message=title,
-                    send_at=start,
-                    type="reminder",
-                    to_name=client_name,
-                    idempotency_key=wi.work_id)
-                await adapter.send_message(
-                    recipient=wi.client_id,
-                    message= f"התזכורת  {title} נשמרה"
-                )
-                
+            from effects.registry import dispatch_effect
 
-            if kind == "SEND_SERVICE_LIST" and eff.get("to") == "client":
-                payload = services_list_payload(eff["rows"])
-
-                persist_scheduled_message_and_enqueue(
-                    business_id=session.business_id,
-                    wa_id=inbound.phone_number_id,
-                    client_id=session.client_id,
-                    to_chat_id=wi.client_id,
-                    interactive_payload=payload,
-                    workflow_id=str(session.session_id),
-                    send_at=now_israel(),
-                    to_name="client_name",
-                    idempotency_key=wi.work_id,
-                )
-
-                emit_event(
-                    event="INBOUND_SERVICE_LIST_ENQUEUED",
-                    inbound_id=str(wi.ref_id),
-                    type="INBOUND",
-                    business_id=session.business_id,
-                    client_id=session.client_id,
-                    session_id=str(session.session_id),
-                    meta={
-                        "work_id": str(wi.work_id),
-                        "rows": len(eff.get("rows") or []),
-                        "to_chat_id": wi.client_id,
-                    },
-                )
-
-            if kind == "FETCH_EVENTS" and eff.get("to") == "client":
-                events = get_future_events_verified(provider_id=provider_id, client_id=wi.client_id, limit=10)
-                message = format_events_message_he(events)
-                await adapter.send_message(
-                    recipient=wi.client_id,
-                    message=message,
-                )
-
-            if kind == "SEND_SLOTS_LIST" and eff.get("to") == "client":
-                bootstrap_start_dt = state.data.bootstrap_start_dt
-                bootstrap_end_dt = state.data.bootstrap_end_dt
-                now = bootstrap_start_dt or now_israel()
-                end_date = bootstrap_end_dt or (now + timedelta(days=4))
-                items = get_available_slots( #format_slots_for_llm per day
-                    user_id=provider_id,
-                    timezone=business.timezone,
-                    start_date=now.isoformat(),
-                    end_date=end_date.isoformat(),
-                    duration=state.data.duration,
-                )
-                if len(items) == 0:
-                    await adapter.send_message(
-                        recipient=wi.client_id,
-                        message="אין זמינות",
-                    )
-                    return
-                if bootstrap_start_dt:
-                    try:
-                        if is_exact_start_match(items, bootstrap_start_dt):
-                            chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
-                            chosen = chunked.chunks[0].slots[0]
-                            slot = TimeSlot.model_validate(chosen)
-                            state.data.chosen_slot = slot
-                            state.step = SessionStep.CONFIRM
-                            state.error_message = None
-                            state.expected_type = InputType.BTN_ID
-                            payload = build_hebrew_slot_confirmation(slot)
-                            session.state_json = jsonify(state.model_dump(mode="json"))
-                            await adapter.send_action_buttons(
-                                recipient=wi.client_id,
-                                message=payload,
-                            )
-                            return
-                    except Exception as e:
-                        import traceback
-                        traceback.print_exc()
-                        print(f"Failed to match bootstrap start: {e}")
-
-
-                chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
-                state.data.chunked = jsonify(chunked.model_dump(mode="json"))
-                state.data.chunked_index = 0
-
-                payload = create_whatsapp_list_message(chunked, wi.client_id, 0)
-                res = await adapter.send_dynamic_list_message(
-                    to_phone=wi.client_id,
-                    interactive_payload=payload,
-                )
-
-                emit_event(
-                    event="INBOUND_SLOTS_LIST_SENT",
-                    inbound_id=str(wi.ref_id),
-                    type="INBOUND",
-                    business_id=str(session.business_id),
-                    client_id=str(session.client_id),
-                    session_id=str(session.session_id),
-                    meta={
-                        "work_id": str(wi.work_id),
-                        "to_phone": str(wi.client_id),
-                        "slots_total": len(items or []),
-                        "send_ok": res["status"] == "sent",
-                        "state": state.model_dump(mode="json"),
-                    },
-                )
-
-            if kind == "SEND_CONFIRM_BUTTONS" and eff.get("to") == "client":
-                slot = state.data.chosen_slot
-                slot = TimeSlot.model_validate(slot)
-                payload = build_hebrew_slot_confirmation(slot)
-                await adapter.send_action_buttons(
-                    recipient=wi.client_id,
-                    message=payload,
-                )
-
-                emit_event(
-                    event="INBOUND_CONFIRM_BUTTONS_SENT",
-                    inbound_id=str(wi.ref_id),
-                    type="INBOUND",
-                    business_id=session.business_id,
-                    client_id=session.client_id,
-                    session_id=str(session.session_id),
-                    meta={
-                        "work_id": str(wi.work_id),
-                        "to_phone": wi.client_id,
-                        "state": jsonify(state.model_dump(mode="json")),
-                    },
-                )
-
-            if kind == "CREATE_EVENT":
-                participants = []
-                notify = False
-                tz = business.timezone
-                event = EventItem(
-                    item_id=None,
-                    command="create",
-                    service_id=service_id,
-                    title=service_name + " - " + (client_name or "") + " - " + (wi.client_id or ""),
-                    description=None,
-                    start_at=chosen_start,
-                    date=None,
-                    end_at=chosen_end,
-                    location="",
-                    participants=participants,
-                    recurrence=None,
-                    reminders=[],
-                    allow_conflicts=False,
-                    notify=notify,
-                    timezone=tz,
-                ) 
-                user_id = business.get_default_provider_id()
-                event_id = persist_event_item(provider_id=user_id,client_id=wi.client_id, event=event)
-                res = create_event(user_id=user_id, event=event)
-                if res.get("ok"):
-                    gcal_event_id = res.get("item_id")
-                    update_event_gcal(user_id=wi.client_id, event_id=event_id, gcal_event_id=gcal_event_id)
-                elif res.get("conflicts"):
-                    conflicts = res.get("conflicts") #TODO
-                else:
-                    raise Exception("Failed to create event")
-
-            if kind == "SEND_CONFIRMATION" and eff.get("to") == "client":
-                res = await adapter.send_message(
-                        recipient=wi.client_id,
-                        message=eff.get("text", ""),
-                    )
+            # inside your loop over effects:
+            await dispatch_effect(
+                kind=kind,
+                eff=eff,
+                db=db,
+                inbound=inbound,
+                wi=wi,
+                session=session,
+                state=state,
+                adapter=adapter,
+                business=business,
+                provider_id=provider_id,
+                client_name=client_name,
+                service_id=service_id,
+                service_name=service_name,
+                chosen_start=chosen_start,
+                chosen_end=chosen_end,
+            )
 
         session.state_json = jsonify(state.model_dump(mode="json"))
         if state.step == SessionStep.DONE:
