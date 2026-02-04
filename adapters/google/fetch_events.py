@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from db.session import SessionLocal
 from models.calendar_event import EventRow  # your SQLAlchemy EventItem model
 from adapters.google.tokens import get_valid_credentials
+from googleapiclient.discovery import build
 
 def init_google_calendar(user_id: str):
     creds = get_valid_credentials(user_id)
