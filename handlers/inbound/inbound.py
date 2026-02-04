@@ -7,26 +7,15 @@ from models.work_item import WorkItem
 from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound, format_date_time_for_template
 from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
 from models.session_state import Actor
-from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message, is_exact_start_match
-from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
-from datetime import timedelta
-from models.availability import ChunkedAvailability
-from handlers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event
-from models.availability import TimeSlot
 from observability.obs import instrument_io
 from handlers.wa_business_registry import wa_phone_id_registry
-from models.event_item import EventItem
-from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
-from db.persist_event import persist_event_item, update_event_gcal
-from adapters.google.fetch_events import get_future_events_verified
-from tools.event_booking import format_events_message_he
-from db.message import persist_scheduled_message
 from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
 from typing import Any, Mapping
+from effects.registry import dispatch_effect
 
 def jsonify(x: Any) -> Any:
     if x is None or isinstance(x, (str, int, float, bool)):
@@ -107,9 +96,6 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 },
             )
 
-            from effects.registry import dispatch_effect
-
-            # inside your loop over effects:
             await dispatch_effect(
                 kind=kind,
                 eff=eff,

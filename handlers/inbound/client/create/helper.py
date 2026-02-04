@@ -2,7 +2,9 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Dict, Any
 from enum import Enum
-
+from models.availability import TimeSlot
+from models.availability import ChunkedAvailability
+from handlers.helper import create_whatsapp_list_message
 
 class ActionType(str, Enum):
     """Types of actions from user selection"""
