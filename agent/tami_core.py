@@ -10,6 +10,7 @@ from typing import Optional
 from agent.tami_text import build_system_prompt
 from runtime.events import now_israel
 from models.business import Service
+from handlers.utility import llm_iso_to_utc
 
 # Load env
 load_dotenv(".venv/.env")
@@ -119,4 +120,5 @@ if __name__ == "__main__":
         elapsed_s = pytime.perf_counter() - start
 
         print(res)
+        print(llm_iso_to_utc(res.start))
         print(f"LLM bootstrap took {elapsed_s:.2f} seconds")

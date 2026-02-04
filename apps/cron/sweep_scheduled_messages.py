@@ -83,33 +83,45 @@ def _claim_due_scheduled(db) -> List[str]:
     return [str(r[0]) for r in rows]
 
 
+from models.work_item import WorkItem
+
 def _insert_work_items(db, message_ids: List[str]) -> int:
+    """
+    Create WorkItem rows pointing at scheduled message rows.
+    Uses ORM so work_id default is generated (matches webhook_ingest design).
+    """
     if not message_ids:
         return 0
 
-    res = db.execute(
+    # Fetch the scheduled messages we claimed (processing) and create work items for them.
+    rows = db.execute(
         text(
             """
-            INSERT INTO work_items (kind, ref_id, status, attempts, run_after, last_error, created_at, updated_at)
-            SELECT
-              :kind,
-              id::uuid,
-              'pending',
-              0,
-              NULL,
-              NULL,
-              now(),
-              now()
+            SELECT id, wa_id, to_chat_id
             FROM tami_scheduled_messages
             WHERE id = ANY(:ids)
               AND status = 'processing'
               AND sent_at IS NULL
             """
         ),
-        {"kind": KIND_SCHEDULED_MESSAGE, "ids": message_ids},
-    )
-    return res.rowcount or 0
+        {"ids": message_ids},
+    ).fetchall()
 
+    created = 0
+    for (msg_id, wa_id, to_chat_id) in rows:
+        wi = WorkItem(
+            kind=KIND_SCHEDULED_MESSAGE,
+            ref_id=msg_id,
+            business_id=None,           # set if you can derive it from wa_id
+            client_id=str(to_chat_id),  # useful for observability / routing
+            run_after=None,
+        )
+        db.add(wi)
+        created += 1
+
+    # Ensure work_id values are generated now
+    db.flush()
+    return created
 
 def sweep_scheduled_messages() -> dict:
     t0 = time.time()
