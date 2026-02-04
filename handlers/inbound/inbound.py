@@ -15,7 +15,7 @@ from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
 from typing import Any, Mapping
-from effects.registry import dispatch_effect
+from handlers.effects.registry import dispatch_effect
 
 def jsonify(x: Any) -> Any:
     if x is None or isinstance(x, (str, int, float, bool)):
