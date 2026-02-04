@@ -181,6 +181,33 @@ def format_slots_for_llm(slots_by_day):
         formatted.append(day_data)
     
     return formatted
+
+def exact_start_match(slots_by_day, requested_start):
+    """
+    Return only the first slot if it exactly matches the requested start time.
+    """
+    for day, slots in slots_by_day.items():
+        if not slots:
+            continue
+
+        start, end = slots[0]
+
+        if start != requested_start:
+            print(f"Requested start does not match slot start: {requested_start} != {start}")
+            continue
+
+        duration = end - start
+
+        return {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "start_time": start.strftime('%H:%M'),
+                "end_time": end.strftime('%H:%M'),
+                "duration_hours": round(duration.total_seconds() / 3600, 1),
+            }
+
+    return None
+
 def get_available_slots(user_id: str, timezone: str, start_date: str = None, end_date: str = None, duration: int = 60):
     service = init_google_calendar(user_id)
     tz = pytz.timezone(timezone)
@@ -243,7 +270,7 @@ def get_available_slots(user_id: str, timezone: str, start_date: str = None, end
     if len(free_slots) == 0:
         now = now_israel()
         start_dt = max(start_dt - timedelta(days=1), now)
-        end_dt = (end_dt + timedelta(days=2))
+        end_dt = (end_dt + timedelta(days=3))
         if end_dt - start_dt > timedelta(days=24):
             return []
         return get_available_slots(user_id, timezone, start_dt.isoformat(), end_dt.isoformat(), duration)

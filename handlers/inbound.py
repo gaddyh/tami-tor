@@ -7,7 +7,7 @@ from models.work_item import WorkItem
 from handlers.utility import load_or_create_session, load_business_by_id, now_israel, services_list_payload, ingest_inbound, format_date_time_for_template
 from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
 from models.session_state import Actor
-from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message
+from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message, exact_start_match
 from apps.scheduled_message_ingest import persist_scheduled_message_and_enqueue
 from datetime import timedelta
 from models.availability import ChunkedAvailability
@@ -162,7 +162,7 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 bootstrap_end_dt = state.data.bootstrap_end_dt
                 now = bootstrap_start_dt or now_israel()
                 end_date = bootstrap_end_dt or (now + timedelta(days=4))
-                items = get_available_slots(
+                items = get_available_slots( #format_slots_for_llm per day
                     user_id=provider_id,
                     timezone=business.timezone,
                     start_date=now.isoformat(),
@@ -175,6 +175,18 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                         message="אין זמינות",
                     )
                     return
+                if bootstrap_start_dt:
+                    chosen = exact_start_match(items, bootstrap_start_dt)
+                    if chosen:
+                        slot = TimeSlot.model_validate(chosen)
+                        payload = build_hebrew_slot_confirmation(slot)
+                        await adapter.send_action_buttons(
+                            recipient=wi.client_id,
+                            message=payload,
+                        )
+                        return
+
+
                 chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
                 state.data.chunked = jsonify(chunked.model_dump(mode="json"))
                 state.data.chunked_index = 0
