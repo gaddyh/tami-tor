@@ -22,6 +22,20 @@ def now_israel():
     tz = ZoneInfo("Asia/Jerusalem")
     return datetime.now(tz)
 
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+ISRAEL_TZ = ZoneInfo("Asia/Jerusalem")
+
+def llm_iso_to_utc(iso_str: str) -> datetime:
+    """
+    LLM ISO datetime (no tz) → UTC datetime
+    Assumes input is Israel local time.
+    """
+    naive = datetime.fromisoformat(iso_str)
+    local = naive.replace(tzinfo=ISRAEL_TZ)
+    return local.astimezone(timezone.utc)
+
 def parse_datetime(value: str) -> datetime:
     """Parse an ISO-8601 string. Supports trailing 'Z'. Returns a datetime; no timezone normalization here."""
     s = value.strip()

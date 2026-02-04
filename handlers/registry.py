@@ -13,6 +13,7 @@ from runtime.session_state import init_state, SessionState, SessionStep, Session
 from models.business import Business
 from adapters.cloud_api import CloudAPIAdapter
 from agent.tami_core import get_llm_simple_reminders, ReminderBootstrap
+from handlers.utility import llm_iso_to_utc
 
 tami_wa_id = "723503380842690"
 tami_dev_wa_id = "816205444920021"
@@ -28,9 +29,20 @@ def tami_handler(business: Business, is_provider: bool, state_json: dict[str, An
     effects = []
     text = rawMessage.content.text.strip()
     if "תזכיר" in text:
-        bootstrap:ReminderBootstrap = get_llm_simple_reminders(text)
+        bootstrap: ReminderBootstrap = get_llm_simple_reminders(text)
+
         if bootstrap.start and bootstrap.title:
-            effects.append({"kind": "CREATE_REMINDER", "title": bootstrap.title, "start": bootstrap.start, "end": bootstrap.end})
+            start = llm_iso_to_utc(bootstrap.start)
+
+            end = llm_iso_to_utc(bootstrap.end) if bootstrap.end else None
+
+            effects.append({
+                "kind": "CREATE_REMINDER",
+                "title": bootstrap.title,
+                "start": start,   # tz-aware UTC datetime
+                "end": end,       # tz-aware UTC datetime or None
+            })
+
         return HandlerResult(
             state=state,
             effects=effects,
