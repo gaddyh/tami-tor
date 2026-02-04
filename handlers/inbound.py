@@ -181,7 +181,12 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                             chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
                             chosen = chunked.chunks[0].slots[0]
                             slot = TimeSlot.model_validate(chosen)
+                            state.data.chosen_slot = slot
+                            state.step = SessionStep.CONFIRM
+                            state.error_message = None
+                            state.expected_type = InputType.BTN_ID
                             payload = build_hebrew_slot_confirmation(slot)
+                            session.state_json = jsonify(state.model_dump(mode="json"))
                             await adapter.send_action_buttons(
                                 recipient=wi.client_id,
                                 message=payload,
