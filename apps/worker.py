@@ -13,7 +13,7 @@ from db.session import SessionLocal
 from models.work_item import WorkItem
 from runtime.redis_client import dequeue_work, enqueue_work, redis_client
 from runtime.events import emit_event
-from handlers.work_registry import WORK_HANDLERS
+from handlers.workers.registry import WORK_HANDLERS
 from handlers.errors import NonRetryableError
 from handlers.utility import now_israel
 from observability.obs import span_attrs

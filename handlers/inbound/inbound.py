@@ -15,7 +15,7 @@ from handlers.helper import build_hebrew_slot_confirmation
 from runtime.events import emit_event
 from models.availability import TimeSlot
 from observability.obs import instrument_io
-from handlers.registry import dispatch, wa_phone_id_registry
+from handlers.wa_business_registry import wa_phone_id_registry
 from models.event_item import EventItem
 from tools.event_booking import create_event
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
