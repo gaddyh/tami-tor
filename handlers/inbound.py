@@ -22,7 +22,7 @@ from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOU
 from db.persist_event import persist_event_item, update_event_gcal
 from adapters.google.fetch_events import get_future_events_verified
 from tools.event_booking import format_events_message_he
-
+from db.message import persist_scheduled_message
 from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
@@ -102,6 +102,18 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     "to": eff.get("to", ""),
                 },
             )
+
+            if kind == "CREATE_REMINDER":
+                title = eff.get("title", "")
+                start = eff.get("start", "")
+                persist_scheduled_message(db=db,
+                wa_id=inbound.phone_number_id,
+                to_chat_id=wi.client_id,
+                message=title,
+                send_at=start,
+                type="reminder",
+                to_name=client_name,
+                idempotency_key=wi.work_id)
 
             if kind == "SEND_SERVICE_LIST" and eff.get("to") == "client":
                 payload = services_list_payload(eff["rows"])
