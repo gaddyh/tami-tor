@@ -182,31 +182,23 @@ def format_slots_for_llm(slots_by_day):
     
     return formatted
 
-def exact_start_match(slots_by_day, requested_start):
+def is_exact_start_match(slots_by_day, requested_start):
     """
     Return only the first slot if it exactly matches the requested start time.
     """
     slots = slots_by_day[0]["slots"]
 
     if not slots:
-        return None
+        return False
 
     start = slots[0]["start"]
     end = slots[0]["end"]
 
-    if start != requested_start:
+    if start != requested_start.isoformat():
         print(f"Requested start does not match slot start: {requested_start} != {start}")
-        return None
+        return False
 
-    duration = end - start
-
-    return {
-                "start": start.isoformat(),
-                "end": end.isoformat(),
-                "start_time": start.strftime('%H:%M'),
-                "end_time": end.strftime('%H:%M'),
-                "duration_hours": round(duration.total_seconds() / 3600, 1),
-            }
+    return True
 
 def get_available_slots(user_id: str, timezone: str, start_date: str = None, end_date: str = None, duration: int = 60):
     service = init_google_calendar(user_id)
