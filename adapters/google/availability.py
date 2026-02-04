@@ -191,7 +191,8 @@ def exact_start_match(slots_by_day, requested_start):
     if not slots:
         return None
 
-    start, end = slots[0]
+    start = slots[0]["start"]
+    end = slots[0]["end"]
 
     if start != requested_start:
         print(f"Requested start does not match slot start: {requested_start} != {start}")
