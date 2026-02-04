@@ -26,12 +26,12 @@ def tami_handler(business: Business, is_provider: bool, state_json: dict[str, An
         if bootstrap.start and bootstrap.title:
             effects.append({"kind": "CREATE_REMINDER", "title": bootstrap.title, "start": bootstrap.start, "end": bootstrap.end})
         return HandlerResult(
-            state=SessionState.model_validate(state_json),
+            state=state_json,
             effects=effects,
         )
 
     return HandlerResult(
-        state=SessionState.model_validate(state_json),
+        state=state_json,
         effects=[],
     )
 

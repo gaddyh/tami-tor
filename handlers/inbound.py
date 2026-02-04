@@ -196,7 +196,6 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     },
                 )
 
-
             if kind == "SEND_CONFIRM_BUTTONS" and eff.get("to") == "client":
                 slot = state.data.chosen_slot
                 slot = TimeSlot.model_validate(slot)
@@ -251,10 +250,6 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                     conflicts = res.get("conflicts") #TODO
                 else:
                     raise Exception("Failed to create event")
-
-
-
-
 
             if kind == "SEND_CONFIRMATION" and eff.get("to") == "client":
                 res = await adapter.send_message(
