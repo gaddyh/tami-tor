@@ -99,7 +99,7 @@ def format_events_message_he(events: Sequence[VerifiedEvent]) -> str:
     # ---------- כמה אירועים ----------
     lines = ["📅 *האירועים הקרובים שלך:*"]
 
-    for i, e in enumerate(events[:5], start=1):
+    for e,i in enumerate(events[:5], start=1):
         if e.all_day:
             when = f"{_fmt_date(date.fromisoformat(e.date))} (כל היום)"
         else:
