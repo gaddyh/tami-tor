@@ -123,7 +123,7 @@ def create_scheduled_from_send_service_list(
     payload = services_list_payload(rows)
 
     wi = WorkItem(
-        kind="SCHEDULED",
+        kind="DYNAMIC_LIST",
         business_id=business_id,
         client_id=client_id,
         status="pending",

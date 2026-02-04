@@ -44,7 +44,7 @@ def persist_scheduled_message_and_enqueue(
     """
     Creates:
       - BusinessScheduledMessage row (domain intent)
-      - WorkItem(kind="SCHEDULED", ref_id=msg.id)
+      - WorkItem(kind="DYNAMIC_LIST", ref_id=msg.id)
     Commits, then enqueues work_id.
 
     Returns:
@@ -78,7 +78,7 @@ def persist_scheduled_message_and_enqueue(
         msg_id = msg.id
 
         wi = WorkItem(
-            kind="SCHEDULED",
+            kind="DYNAMIC_LIST",
             ref_id=msg_id,
             business_id=business_id,
             client_id=client_id,
@@ -95,7 +95,7 @@ def persist_scheduled_message_and_enqueue(
         event="WORK_ENQUEUED",
         meta={
             "where": "effects",
-            "kind": "SCHEDULED",
+            "kind": "DYNAMIC_LIST",
             "work_id": work_id,
             "scheduled_message_id": str(msg_id),
             "business_id": business_id,

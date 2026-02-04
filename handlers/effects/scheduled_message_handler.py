@@ -9,9 +9,9 @@ from models.business_scheduled_message import BusinessScheduledMessage
 from adapters.cloud_api import CloudAPIAdapter
 
 
-async def handle_scheduled(db: Session, wi: WorkItem) -> None:
-    if wi.kind != "SCHEDULED":
-        raise NonRetryableError(f"handle_scheduled got wrong kind: {wi.kind}")
+async def handle_dynamic_list(db: Session, wi: WorkItem) -> None:
+    if wi.kind != "DYNAMIC_LIST":
+        raise NonRetryableError(f"handle_dynamic_list got wrong kind: {wi.kind}")
 
     msg = db.get(BusinessScheduledMessage, wi.ref_id)
     if not msg:
