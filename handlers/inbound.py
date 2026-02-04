@@ -107,13 +107,18 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
                 title = eff.get("title", "")
                 start = eff.get("start", "")
                 persist_scheduled_message(db=db,
-                wa_id=inbound.phone_number_id,
-                to_chat_id=wi.client_id,
-                message=title,
-                send_at=start,
-                type="reminder",
-                to_name=client_name,
-                idempotency_key=wi.work_id)
+                    wa_id=inbound.phone_number_id,
+                    to_chat_id=wi.client_id,
+                    message=title,
+                    send_at=start,
+                    type="reminder",
+                    to_name=client_name,
+                    idempotency_key=wi.work_id)
+                await adapter.send_message(
+                    recipient=wi.client_id,
+                    message= f"התזכורת  {title} נשמרה"
+                )
+                
 
             if kind == "SEND_SERVICE_LIST" and eff.get("to") == "client":
                 payload = services_list_payload(eff["rows"])
