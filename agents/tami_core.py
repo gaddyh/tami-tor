@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
 from typing import Optional
 
-from agent.tami_text import build_system_prompt
+from agents.tami_text import build_system_prompt
 from runtime.events import now_israel
 from models.business import Service
 from handlers.utility import llm_iso_to_utc
