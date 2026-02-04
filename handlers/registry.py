@@ -13,7 +13,7 @@ from observability.obs import instrument_io
 from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
 from models.business import Business
 from adapters.cloud_api import CloudAPIAdapter
-from agent.tami_core import get_llm_simple_reminders, ReminderBootstrap
+from agents.tami_core import get_llm_simple_reminders, ReminderBootstrap
 from handlers.utility import llm_iso_to_utc
 
 tami_wa_id = "723503380842690"

@@ -4,7 +4,7 @@ from adapters.primitivies import RawMessage
 from typing import Any
 from observability.obs import instrument_io
 from handlers.utility import build_service_rows
-from agent.core import get_llm_bootstrap
+from agents.core import get_llm_bootstrap
 
 @instrument_io(
     name="init_text",

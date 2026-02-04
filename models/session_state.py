@@ -7,7 +7,7 @@ from typing import Literal
 from sqlalchemy.sql.coercions import expect
 from pydantic import BaseModel
 from models.availability import ChunkedAvailability, TimeSlot
-from agent.core import CalendarEventBootstrap
+from agents.core import CalendarEventBootstrap
 from datetime import datetime
 
 class Actor(str, Enum):
