@@ -9,6 +9,7 @@ from models.business import Business
 from adapters.cloud_api import CloudAPIAdapter
 from agents.tami_core import get_llm_simple_reminders, ReminderBootstrap
 from handlers.utility import llm_iso_to_utc
+from handlers.inbound.registry import dispatch
 
 tami_wa_id = "723503380842690"
 tami_dev_wa_id = "816205444920021"
