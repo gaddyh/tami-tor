@@ -186,27 +186,26 @@ def exact_start_match(slots_by_day, requested_start):
     """
     Return only the first slot if it exactly matches the requested start time.
     """
-    for day, slots in slots_by_day:
-        if not slots:
-            continue
+    slots = slots_by_day[0]["slots"]
 
-        start, end = slots[0]
+    if not slots:
+        return None
 
-        if start != requested_start:
-            print(f"Requested start does not match slot start: {requested_start} != {start}")
-            continue
+    start, end = slots[0]
 
-        duration = end - start
+    if start != requested_start:
+        print(f"Requested start does not match slot start: {requested_start} != {start}")
+        return None
 
-        return {
+    duration = end - start
+
+    return {
                 "start": start.isoformat(),
                 "end": end.isoformat(),
                 "start_time": start.strftime('%H:%M'),
                 "end_time": end.strftime('%H:%M'),
                 "duration_hours": round(duration.total_seconds() / 3600, 1),
             }
-
-    return None
 
 def get_available_slots(user_id: str, timezone: str, start_date: str = None, end_date: str = None, duration: int = 60):
     service = init_google_calendar(user_id)
