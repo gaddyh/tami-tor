@@ -186,7 +186,7 @@ def exact_start_match(slots_by_day, requested_start):
     """
     Return only the first slot if it exactly matches the requested start time.
     """
-    for day, slots in slots_by_day.items():
+    for day, slots in slots_by_day:
         if not slots:
             continue
 
