@@ -27,28 +27,20 @@ EFFECT_REGISTRY: Dict[str, Handler] = {
 @instrument_io(
     name="dispatch_effect",
     meta={"operation": "dispatch_effect"},
-    input_fn=lambda kind, eff, db, inbound, wi, session, state, adapter, business, provider_id, client_name, service_id, service_name, chosen_start, chosen_end: {
+    input_fn=lambda *, kind, eff, **ctx: {
         "kind": kind,
-        "eff": eff
+        "to": eff.get("to"),
+        "eff_keys": sorted(list(eff.keys()))[:25],
+        # common ids (only if present):
+        "work_id": str(getattr(ctx.get("wi"), "work_id", "") or ""),
+        "session_id": str(getattr(ctx.get("session"), "session_id", "") or ""),
+        "business_id": str(getattr(ctx.get("session"), "business_id", "") or ""),
     },
-    output_fn=lambda result: result,
-    redact=True
+    # your function returns None; emit something stable
+    output_fn=lambda result: {"ok": True},
+    redact=True,
 )
-async def dispatch_effect(kind=kind,
-                eff=eff,
-                db=db,
-                inbound=inbound,
-                wi=wi,
-                session=session,
-                state=state,
-                adapter=adapter,
-                business=business,
-                provider_id=provider_id,
-                client_name=client_name,
-                service_id=service_id,
-                service_name=service_name,
-                chosen_start=chosen_start,
-                chosen_end=chosen_end,) -> None:
+async def dispatch_effect(*, kind: str, eff: dict, **ctx: Any) -> None:
     """
     Dispatches an effect by kind.
 
@@ -61,4 +53,4 @@ async def dispatch_effect(kind=kind,
         # return
         raise KeyError(f"Unhandled effect kind: {kind}")
 
-    await handler(eff=eff, db=db, inbound=inbound, wi=wi, session=session, state=state, adapter=adapter, business=business, provider_id=provider_id, client_name=client_name, service_id=service_id, service_name=service_name, chosen_start=chosen_start, chosen_end=chosen_end)
+    await handler(eff=eff, **ctx)
