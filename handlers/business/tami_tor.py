@@ -1,0 +1,32 @@
+from typing import Dict, Any
+
+from models.session_state import InputType, SessionFlow, SessionStep, SessionState, Actor
+from adapters.primitivies import RawMessage
+from handlers.models import HandlerResult, INBOUND_REGISTRY 
+from observability.obs import instrument_io
+from runtime.session_state import init_state, SessionState, SessionStep, SessionFlow, InputType, get_type
+from models.business import Business
+from adapters.cloud_api import CloudAPIAdapter
+from agents.tami_core import get_llm_simple_reminders, ReminderBootstrap
+from handlers.utility import llm_iso_to_utc
+from handlers.inbound.registry import dispatch
+
+def tami_tor_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
+    if not state_json:
+        state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)
+    else:
+        state = SessionState.model_validate(state_json)
+
+    ctx = {
+        "is_provider": is_provider,
+        "services": business.services(),
+        "timezone": business.timezone,
+        "booking_policy_mode": business.booking_policy_mode,
+        "default_provider_id": business.get_default_provider_id(),
+    }
+
+    state.input_type = get_type(rawMessage)
+
+    result = dispatch(state=state, msg=rawMessage, ctx=ctx)
+
+    return result

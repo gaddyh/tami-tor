@@ -9,7 +9,7 @@ from runtime.session_state import init_state, SessionState, SessionStep, Session
 from models.session_state import Actor
 from runtime.events import emit_event
 from observability.obs import instrument_io
-from handlers.wa_business_registry import wa_phone_id_registry
+from handlers.business.registry import wa_phone_id_registry
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from datetime import datetime, date
 from uuid import UUID
