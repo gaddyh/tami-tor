@@ -74,6 +74,8 @@ async def handle_process_inbound(db: Session, wi: WorkItem) -> dict | None:
             client_name = state.data.client_name
             duration = state.data.duration
             chosen_slot = state.data.chosen_slot
+            chosen_start = None
+            chosen_end = None
             if chosen_slot:
                 chosen_start = chosen_slot.start
                 chosen_end = chosen_slot.end
