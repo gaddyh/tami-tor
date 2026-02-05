@@ -111,40 +111,6 @@ def services_list_payload(rows) -> dict:
         "action": {"button": "בחירה", "sections": [{"title": "שירותים זמינים", "rows": rows}]},
     }
 
-def create_scheduled_from_send_service_list(
-    *,
-    db: Session,
-    business_id: str,
-    client_id: str,
-    phone_number_id: str,
-    to_phone: str,
-    rows: list[dict],
-) -> WorkItem:
-    payload = services_list_payload(rows)
-
-    wi = WorkItem(
-        kind="DYNAMIC_LIST",
-        business_id=business_id,
-        client_id=client_id,
-        status="pending",
-        attempts=0,
-        run_after=now_israel(),  # run ASAP (or set a future time)
-        ref_id=None,
-        payload_json={
-            "action": "SEND_DYNAMIC_LIST",
-            "phone_number_id": phone_number_id,
-            "to_phone": to_phone,
-            "interactive_payload": payload,
-            "meta": {"reason": "SEND_SERVICE_LIST"},
-        },
-    )
-    db.add(wi)
-    db.flush()     # assigns wi.work_id
-    db.commit()    # durable
-
-    enqueue_work(str(wi.work_id))
-    return wi
-
 def build_service_rows(services: list[Service]) -> list[dict]:
     return [
         {
