@@ -117,7 +117,9 @@ Use null for unknowns.
 No extra text.
 
 EXAMPLES (input → output):
-
+0) Input: "שלום"
+Output:
+{{"service_name": null, "start_date": null, "start_time": null, "end_date": null, "end_time": null}}
 1) Input: "אני רוצה לקבוע תור"
 Output:
 {{"service_name": null, "start_date": null, "start_time": null, "end_date": null, "end_time": null}}
