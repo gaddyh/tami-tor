@@ -6,11 +6,11 @@ from models.session import Session
 from models.work_item import WorkItem
 from adapters.cloud_api import CloudAPIAdapter
 from models.business import Business
-from adapters.google.availability import get_available_slots, divide_chunked_into_slots, create_whatsapp_list_message, is_exact_start_match
+from adapters.google.availability import get_available_slots, divide_chunked_into_slots, is_exact_start_match
 from models.availability import ChunkedAvailability
 from models.availability import TimeSlot
 from handlers.utility import now_israel
-from handlers.helper import build_hebrew_slot_confirmation
+from handlers.helper import build_hebrew_slot_confirmation, create_whatsapp_list_message
 from runtime.events import emit_event
 from handlers.helper import jsonify
 
