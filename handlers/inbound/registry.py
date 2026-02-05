@@ -66,3 +66,7 @@ INBOUND_REGISTRY[
 INBOUND_REGISTRY[
     (Actor.CLIENT, SessionFlow.CLIENT_DELETE, SessionStep.CLIENT_DELETE_PICK, InputType.TEXT, InputType.LIST_ID)
 ] = step_text
+
+INBOUND_REGISTRY[
+    (Actor.CLIENT, SessionFlow.CLIENT_DELETE, SessionStep.SERVICE_PICK, InputType.TEXT, InputType.LIST_ID)
+] = step_text
