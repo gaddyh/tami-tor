@@ -30,6 +30,7 @@ def step_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         return HandlerResult(state=state, effects=effects)
     
     if "חדש" in text:
+        state.flow = SessionFlow.CLIENT_CREATE
         state.step = SessionStep.SERVICE_PICK
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})

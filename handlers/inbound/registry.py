@@ -5,7 +5,6 @@ from models.session_state import InputType, SessionFlow, SessionStep, SessionSta
 from handlers.inbound.client_show_services_list_list import client_show_services_list_list
 from handlers.inbound.client_show_slots_list_list import client_show_slots_list_list
 from handlers.inbound.client_confirm_btn_btn import client_confirm_btn_btn
-from handlers.inbound.init_text import init_text
 from handlers.inbound.step_text import step_text
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
@@ -38,7 +37,7 @@ def dispatch(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Handl
 
 INBOUND_REGISTRY[
     (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.INIT, InputType.TEXT, InputType.TEXT)
-] = init_text
+] = step_text
 
 INBOUND_REGISTRY[
     (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.SERVICE_PICK, InputType.TEXT, InputType.LIST_ID)
