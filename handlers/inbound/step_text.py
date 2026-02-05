@@ -52,6 +52,7 @@ def step_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
     state.data.bootstrap = get_llm_bootstrap(text, services)
     print("bootstrap", state.data.bootstrap)
     if state.data.bootstrap.is_empty():
+        state.flow = SessionFlow.CLIENT_CREATE
         state.step = SessionStep.SERVICE_PICK
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})
