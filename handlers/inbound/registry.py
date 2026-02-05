@@ -63,3 +63,7 @@ INBOUND_REGISTRY[
 INBOUND_REGISTRY[
     (Actor.CLIENT, SessionFlow.CLIENT_CREATE, SessionStep.CONFIRM, InputType.BTN_ID, InputType.BTN_ID)
 ] = client_confirm_btn_btn
+
+INBOUND_REGISTRY[
+    (Actor.CLIENT, SessionFlow.CLIENT_DELETE, SessionStep.CLIENT_DELETE_PICK, InputType.TEXT, InputType.LIST_ID)
+] = step_text
