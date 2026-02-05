@@ -10,6 +10,7 @@ from handlers.effects.send_slots_list import handle_send_slots_list
 from handlers.effects.send_confirm_buttons import handle_send_confirm_buttons
 from handlers.effects.create_event import handle_create_event
 from handlers.effects.send_confirmation import handle_send_confirmation
+from handlers.effects.fetch_events_for_client_delete import handle_fetch_events_for_client_delete
 from observability.obs import instrument_io
 
 Handler = Callable[..., Awaitable[None]]
@@ -22,6 +23,7 @@ EFFECT_REGISTRY: Dict[str, Handler] = {
     "SEND_CONFIRM_BUTTONS": handle_send_confirm_buttons,
     "CREATE_EVENT": handle_create_event,
     "SEND_CONFIRMATION": handle_send_confirmation,
+    "FETCH_EVENTS_FOR_CLIENT_DELETE": handle_fetch_events_for_client_delete,
 }
 
 @instrument_io(
