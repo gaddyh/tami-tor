@@ -10,7 +10,7 @@ from handlers.effects.send_slots_list import handle_send_slots_list
 from handlers.effects.send_confirm_buttons import handle_send_confirm_buttons
 from handlers.effects.create_event import handle_create_event
 from handlers.effects.send_confirmation import handle_send_confirmation
-
+from observability.obs import instrument_io
 
 Handler = Callable[..., Awaitable[None]]
 
