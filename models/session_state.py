@@ -33,6 +33,7 @@ class SessionStep(str, Enum):
     INIT = "init"
     SERVICE_PICK = "service_pick"
     SLOTS_PICK = "slots_pick"
+    CLIENT_DELETE_PICK = "client_delete_pick"
     CONFIRM = "confirm"
     DONE = "done"
     CANCELLED = "cancelled"

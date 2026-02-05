@@ -1,4 +1,4 @@
-from models.session_state import SessionState, SessionStep, InputType
+from models.session_state import SessionState, SessionStep, InputType, SessionFlow
 from handlers.models import HandlerResult, Effect
 from adapters.primitivies import RawMessage
 from typing import Any
@@ -33,6 +33,13 @@ def step_text(state: SessionState, msg: RawMessage, ctx: dict[str, Any]) -> Hand
         state.step = SessionStep.SERVICE_PICK
         state.expected_type = InputType.LIST_ID
         effects.append({"kind": "SEND_SERVICE_LIST", "to": "client", "rows": build_service_rows(services)})
+        return HandlerResult(state=state, effects=effects)
+
+    if text in ["בטל", "ביטול", "בטלי"]:
+        state.flow = SessionFlow.CLIENT_DELETE
+        state.step = SessionStep.CLIENT_DELETE_PICK
+        state.expected_type = InputType.LIST_ID
+        effects.append({"kind": "FETCH_EVENTS_FOR_CLIENT_DELETE", "to": "client", "rows": []})
         return HandlerResult(state=state, effects=effects)
 
     if text in ["שלום", "היי", "הי", "אהלן"]:
