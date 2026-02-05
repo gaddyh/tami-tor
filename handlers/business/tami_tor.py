@@ -11,6 +11,19 @@ from agents.tami_core import get_llm_simple_reminders, ReminderBootstrap
 from handlers.utility import llm_iso_to_utc
 from handlers.inbound.registry import dispatch
 
+@instrument_io(
+    name="tami_tor_handler",
+    meta={"operation": "tami_tor_handler"},
+    input_fn=lambda business, is_provider, state_json, rawMessage, adapter: {
+        "business_id": business.business_id,
+        "is_provider": is_provider,
+        "state_json": state_json,
+        "rawMessage": rawMessage,
+        "adapter": adapter
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 def tami_tor_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
     if not state_json:
         state = init_state(rawMessage, actor=Actor.PROVIDER if is_provider else Actor.CLIENT)

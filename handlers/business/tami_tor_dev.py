@@ -7,7 +7,21 @@ from runtime.session_state import init_state, SessionState, SessionStep, Session
 from models.business import Business
 from adapters.cloud_api import CloudAPIAdapter
 from handlers.inbound.registry import dispatch
+from observability.obs import instrument_io
 
+@instrument_io(
+    name="tami_tor_dev_handler",
+    meta={"operation": "tami_tor_dev_handler"},
+    input_fn=lambda business, is_provider, state_json, rawMessage, adapter: {
+        "business_id": business.business_id,
+        "is_provider": is_provider,
+        "state_json": state_json,
+        "rawMessage": rawMessage,
+        "adapter": adapter
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 def tami_tor_dev_handler(business: Business, is_provider: bool, state_json: dict[str, Any], rawMessage: RawMessage, adapter: CloudAPIAdapter) -> HandlerResult:
     if not state_json:
         state = init_state(rawMessage, actor=Actor.CLIENT) #TODO
