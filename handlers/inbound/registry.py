@@ -2,11 +2,11 @@ from ensurepip import bootstrap
 from typing import Callable, Dict, Any, Optional, Tuple
 
 from models.session_state import InputType, SessionFlow, SessionStep, SessionState, Actor
-from handlers.inbound.client.create.client_show_services_list_list import client_show_services_list_list
-from handlers.inbound.client.create.client_show_slots_list_list import client_show_slots_list_list
-from handlers.inbound.client.create.client_confirm_btn_btn import client_confirm_btn_btn
-from handlers.inbound.client.create.init_text import init_text
-from handlers.inbound.client.create.step_text import step_text
+from handlers.inbound.client_show_services_list_list import client_show_services_list_list
+from handlers.inbound.client_show_slots_list_list import client_show_slots_list_list
+from handlers.inbound.client_confirm_btn_btn import client_confirm_btn_btn
+from handlers.inbound.init_text import init_text
+from handlers.inbound.step_text import step_text
 from adapters.primitivies import RawMessage
 from handlers.models import Effect, HandlerResult, RouteKey, NoRouteFound, INBOUND_REGISTRY 
 from observability.obs import instrument_io
