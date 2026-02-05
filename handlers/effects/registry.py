@@ -24,7 +24,17 @@ EFFECT_REGISTRY: Dict[str, Handler] = {
     "SEND_CONFIRMATION": handle_send_confirmation,
 }
 
-
+@instrument_io(
+    name="dispatch_effect",
+    meta={"operation": "dispatch_effect"},
+    input_fn=lambda kind, eff, ctx: {
+        "kind": kind,
+        "eff": eff,
+        "ctx": ctx,
+    },
+    output_fn=lambda result: result,
+    redact=True
+)
 async def dispatch_effect(*, kind: str, eff: dict, **ctx: Any) -> None:
     """
     Dispatches an effect by kind.
