@@ -58,6 +58,8 @@ From the user’s message, infer as many fields as possible for:
 - end_date: str
 - end_time: str
 
+If the message is just a casual greeting (e.g. "שלום"), return immediately with output null for all fields.
+
 AVAILABLE SERVICES (authoritative):
 The user may only book one of the following services.
 If the requested service does not clearly match one of these names, output null.
