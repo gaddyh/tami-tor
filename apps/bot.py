@@ -1,120 +1,48 @@
 # apps/bot.py
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
-
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-from sqlalchemy import select
-
-from db.session import SessionLocal
-from models.session import Session
-
 import os
-import json
-from fastapi import Header, HTTPException
-from sqlalchemy import func
-from runtime.redis_client import redis_client, QUEUE_OUTBOX
 import hmac
 import hashlib
 import logging
-import time
+from contextlib import asynccontextmanager
+from typing import Optional, List
 
 from fastapi import FastAPI, Request, Header, HTTPException, Query
-from fastapi.responses import PlainTextResponse, HTMLResponse
-from fastapi.responses import JSONResponse
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from adapters.google.oauth import google_router
+
+from temporalio.client import Client
+
+from apps.webhook_ingest import persist_inbound
+from handlers.utility import get_business_id
+from runtime.events import emit_event
+
+from workflows.booking_with_signal import InboundEvent
+from workflows.main import signal_booking_workflow, TASK_QUEUE
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-from fastapi import FastAPI
-from contextlib import asynccontextmanager, suppress
-from typing import Optional
-
-app = FastAPI(title="tami")
-app.include_router(google_router) #auth connect
-templates = Jinja2Templates(directory="apps/templates")
-
-
-class HelloIn(BaseModel):
-    business_id: str = Field(..., min_length=1)
-    client_id: str = Field(..., min_length=1)
-
-
-class HelloOut(BaseModel):
-    session_id: str
-    outbox_id: str
-    status: str
-
-
-@app.get("/success", response_class=HTMLResponse)
-async def google_connect_success(request: Request):
-    return templates.TemplateResponse("google_success.html", {"request": request})
-
-@app.get("/privacy", response_class=HTMLResponse)
-async def privacy(request: Request):
-    return templates.TemplateResponse("privacy.html", {"request": request})
-
-@app.get("/terms", response_class=HTMLResponse)
-async def terms(request: Request):
-    return templates.TemplateResponse("terms.html", {"request": request})
-
-@app.get("/connect", response_class=HTMLResponse)
-async def google_connect_page(request: Request):
-        return templates.TemplateResponse("google_connect.html", {"request": request})
-
-@app.get("/health")
-def health():
-    return {"ok": True}
-from runtime.events import emit_event
-from runtime.redis_client import QUEUE_OUTBOX
-
-import json
-import os
-
-from fastapi import Header, HTTPException
-from sqlalchemy import select, func
-
-from db.session import SessionLocal
-from runtime.redis_client import redis_client, QUEUE_WORK  # make sure QUEUE_WORK exists
-from apps.config import WORK_STREAM_KEY  # or whatever you named your stream key
-
-from models.work_item import WorkItem
-from models.inbound_message import InboundMessage
-
-from dotenv import load_dotenv
-load_dotenv(".venv/.env")
-
-from apps.debug import debug_ui
-
-@app.get("/debug/ui", response_class=HTMLResponse)
-def debug_ui_endpoint(token: str, count: int = 20):
-    return debug_ui(token, count)
-
-# apps/bot.py (or wherever your FastAPI app is)
-
-import hmac
-import hashlib
-import json
-import time
-from typing import Optional
-
-from fastapi import FastAPI, Request, Header, HTTPException
-from fastapi.responses import Response, JSONResponse
-
-from apps.webhook_ingest import persist_inbound_and_enqueue
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "...")
 APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
 
+templates = Jinja2Templates(directory="apps/templates")
+
+temporal_client: Client | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global temporal_client
+    temporal_client = await Client.connect(os.getenv("TEMPORAL_ADDRESS", "localhost:7233"))
+    yield
+
+
+app = FastAPI(title="tami", lifespan=lifespan)
+
+
 def _peek_textish(m: dict) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
-    """
-    Keep your existing helper if you have it.
-    This is only for logging; not required for correctness.
-    """
     msg_type = m.get("type")
     text = None
     caption = None
@@ -141,15 +69,54 @@ def _peek_textish(m: dict) -> tuple[Optional[str], Optional[str], Optional[str],
 
     return text, caption, interactive_type, button_text
 
+
+def _to_inbound_event(mid: str, client_id: str, m: dict) -> InboundEvent:
+    msg_type = (m.get("type") or "unknown").lower()
+
+    if msg_type == "audio":
+        audio = m.get("audio") or {}
+        audio_id = (audio.get("id") or "").strip()
+        return InboundEvent(event_id=mid, client_id=client_id, kind="audio", audio_id=audio_id)
+
+    if msg_type == "text":
+        text = ((m.get("text") or {}).get("body") or "").strip()
+        return InboundEvent(event_id=mid, client_id=client_id, kind="text", text=text)
+
+    if msg_type == "interactive":
+        interactive = m.get("interactive") or {}
+        itype = (interactive.get("type") or "").lower()
+
+        if itype == "list_reply":
+            list_id = ((interactive.get("list_reply") or {}).get("id") or "").strip()
+            return InboundEvent(event_id=mid, client_id=client_id, kind="list", list_id=list_id)
+
+        if itype == "button_reply":
+            button_id = ((interactive.get("button_reply") or {}).get("id") or "").strip()
+            return InboundEvent(event_id=mid, client_id=client_id, kind="button", button_id=button_id)
+
+    if msg_type == "button":
+        btn = m.get("button") or {}
+        button_id = (btn.get("payload") or btn.get("text") or "").strip()
+        return InboundEvent(event_id=mid, client_id=client_id, kind="button", button_id=button_id)
+
+    return InboundEvent(event_id=mid, client_id=client_id, kind="unknown")
+
+
+def _demo_services() -> List[Service]:
+    # For now, keep your demo list here.
+    # Later: move to a workflow activity load_services(business_id).
+    return [
+        Service(id="haircut", name="Haircut", duration_min=30),
+        Service(id="beard", name="Beard", duration_min=15),
+    ]
+
+
 @app.get("/webhook", response_class=PlainTextResponse)
 async def verify_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
     hub_verify_token: str = Query(None, alias="hub.verify_token"),
     hub_challenge: str = Query(None, alias="hub.challenge"),
 ):
-    print("hub_mode", hub_mode)
-    print("hub_verify_token", hub_verify_token)
-    print("hub_challenge", hub_challenge)
     if hub_mode == "subscribe" and hub_verify_token == VERIFY_TOKEN:
         logger.info("Webhook verification succeeded.")
         return hub_challenge or ""
@@ -160,16 +127,15 @@ async def verify_webhook(
 @app.post("/webhook")
 async def webhook(
     request: Request,
-    x_hub_signature_256: str = Header(default=None)
+    x_hub_signature_256: str = Header(default=None),
 ):
     body_bytes = await request.body()
 
-    # Verify Meta signature if app secret is set
-    if APP_SECRET and False:
+    # Turn on signature verification when ready
+    if APP_SECRET:
         expected_signature = "sha256=" + hmac.new(
             APP_SECRET.encode(), body_bytes, hashlib.sha256
         ).hexdigest()
-
         if not hmac.compare_digest(expected_signature, x_hub_signature_256 or ""):
             logger.warning("Signature verification failed.")
             raise HTTPException(status_code=403, detail="Invalid signature")
@@ -181,8 +147,10 @@ async def webhook(
         return Response(status_code=200)
 
     saw_messages = False
-    new_jobs = 0
+    new_signals = 0
     duplicates = 0
+
+    assert temporal_client is not None, "Temporal client not initialized"
 
     try:
         for entry in (raw_data.get("entry") or []):
@@ -201,42 +169,67 @@ async def webhook(
                     if not mid:
                         continue
 
-                    # Optional: log peek fields
+                    client_id = (m.get("from") or "").strip() or "unknown"
+
+                    # logging peek
                     try:
                         msg_type = m.get("type")
                         keys = list(m.keys())
                         text, caption, interactive_type, button_text = _peek_textish(m)
-
                         logger.info(
                             "INBOUND mid=%s from=%s type=%s keys=%s text=%s caption=%s interactive=%s button=%s",
-                            mid, m.get("from"), msg_type, keys,
+                            mid, client_id, msg_type, keys,
                             (text[:120] if text else None),
                             (caption[:120] if caption else None),
-                            interactive_type, button_text
+                            interactive_type, button_text,
                         )
                     except Exception:
                         logger.exception("Logging failed")
 
-                    # Persist + enqueue inbound (InboundMessage is the durable work item)
-                    inserted = persist_inbound_and_enqueue(
+                    inserted, inbound_db_id, _from_value = persist_inbound(
                         message_id=mid,
                         phone_number_id=phone_number_id,
-                        raw_message=m,  # single message object
+                        raw_message=m,
                     )
 
-                    if inserted:
-                        new_jobs += 1
-                    else:
+                    if not inserted:
                         duplicates += 1
+                        continue
+
+                    # Map phone_number_id + client_id -> your business_id (your existing rule)
+                    business_id = get_business_id(phone_number_id, client_id)
+
+                    ev = _to_inbound_event(mid, client_id, m)
+
+                    await signal_booking_workflow(
+                        business_id=business_id,
+                        client_id=client_id,
+                        ev=ev,
+                        temporal_client=temporal_client,
+                    )
+                    new_signals += 1
+
+                    emit_event(
+                        event="TEMPORAL_SIGNAL_SENT",
+                        meta={
+                            "workflow_id": wf_id,
+                            "task_queue": TASK_QUEUE,
+                            "event_id": mid,
+                            "inbound_db_id": str(inbound_db_id) if inbound_db_id else None,
+                            "business_id": business_id,
+                            "client_id": client_id,
+                            "phone_number_id": phone_number_id,
+                        },
+                    )
 
     except Exception:
         logger.exception("Failed to ingest messages")
 
-    if new_jobs > 0:
-        logger.info("Enqueued %d new messages (duplicates=%d)", new_jobs, duplicates)
+    if new_signals > 0:
+        logger.info("Signaled %d new messages (duplicates=%d)", new_signals, duplicates)
         return Response(status_code=200)
 
-    if saw_messages and new_jobs == 0:
+    if saw_messages and new_signals == 0:
         return JSONResponse({"status": "duplicate", "duplicates": duplicates}, status_code=200)
 
     return Response(status_code=200)

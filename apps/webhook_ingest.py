@@ -1,38 +1,41 @@
 # apps/webhook_ingest.py
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import uuid
 from typing import Optional
-
 from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
 from models.inbound_message import InboundMessage
-from models.work_item import WorkItem
-from runtime.redis_client import enqueue_work
-from runtime.events import emit_event
-from handlers.utility import get_business_id
 
-def persist_inbound_and_enqueue(
+
+def persist_inbound(
     *,
     message_id: str,
     phone_number_id: str,
     raw_message: dict,
-) -> bool:
+) -> tuple[bool, Optional[uuid.UUID], str]:
+    """
+    Persist inbound message for auditing/debug + dedup.
+
+    Returns:
+      (inserted, inbound_db_id, from_value)
+
+    NOTE:
+      Dedup relies on a UNIQUE constraint on (phone_number_id, message_id).
+    """
     if not message_id or not phone_number_id:
         raise ValueError("message_id and phone_number_id are required")
 
-    # Extract compact fields exactly like you asked
     ts_raw = raw_message.get("timestamp")
     try:
         ts_int = int(ts_raw) if ts_raw is not None else None
     except (ValueError, TypeError):
         ts_int = None
 
-    from_value = raw_message.get("from") or "unknown"
+    from_value = (raw_message.get("from") or "unknown").strip() or "unknown"
 
-    inbound_id = None
-    work_id = None
+    inbound_id: Optional[uuid.UUID] = None
 
     with SessionLocal() as db:
         try:
@@ -44,40 +47,11 @@ def persist_inbound_and_enqueue(
                 from_=from_value,
             )
             db.add(inbound)
-            db.flush()  # inbound.id
-
+            db.flush()  # assigns inbound.id (UUID)
             inbound_id = inbound.id
-
-            wi = WorkItem(
-                kind="INBOUND",
-                ref_id=inbound_id,
-                business_id=get_business_id(phone_number_id, from_value),
-                client_id=from_value,
-            )
-            db.add(wi)
-            db.flush()  # wi.work_id
-
-            work_id = str(wi.work_id)
             db.commit()
+            return True, inbound_id, from_value
 
         except IntegrityError:
             db.rollback()
-            return False
-
-    enqueue_work(work_id)
-
-    emit_event(
-        event="WORK_ENQUEUED",
-        meta={
-            "where": "webhook",
-            "kind": "INBOUND",
-            "work_id": work_id,
-            "inbound_id": str(inbound_id),
-            "phone_number_id": phone_number_id,
-            "message_id": message_id,
-            "from": from_value,
-            "timestamp": ts_raw,
-        },
-    )
-
-    return True
+            return False, None, from_value

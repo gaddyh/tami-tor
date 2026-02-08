@@ -2,6 +2,7 @@
 from __future__ import annotations
 from db.persist_event import persist_event_item, update_event_gcal
 from adapters.google.fetch_events import get_future_events_verified
+from models.session_state import SessionData
 from tools.event_booking import format_events_message_he
 from adapters.cloud_api import CloudAPIAdapter
 from models.session import Session
@@ -57,13 +58,17 @@ def build_verified_events_list_interactive_payload(
 
     # IMPORTANT: return the *interactive payload*, not the full message
     return {
-        "type": "list",
-        "header": {"type": "text", "text": header_text},
-        "body": {"text": body_text},
-        "action": {
-            "button": button_text,
-            "sections": [{"title": section_title, "rows": rows}],
+        "payload":
+        {
+            "type": "list",
+            "header": {"type": "text", "text": header_text},
+            "body": {"text": body_text},
+            "action": {
+                "button": button_text,
+                "sections": [{"title": section_title, "rows": rows}],
+            },
         },
+        "rows": rows
     }
 
 async def handle_fetch_events_for_client_delete(*, eff: dict, provider_id, session:Session, inbound:InboundMessage, wi:WorkItem, adapter:CloudAPIAdapter, **_) -> None:
@@ -77,9 +82,14 @@ async def handle_fetch_events_for_client_delete(*, eff: dict, provider_id, sessi
     )
     payload = build_verified_events_list_interactive_payload(events)
 
+    data:SessionData = session.state_json["data"]
+    data.delete_event_list = payload["rows"]
+    data.delete_event_id = None
+    session.state_json["data"] = data
+    
     res = await adapter.send_dynamic_list_message(
         to_phone=wi.client_id,
-        interactive_payload=payload,
+        interactive_payload=payload["payload"],
     )
 
     emit_event(
