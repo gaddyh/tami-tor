@@ -9,4 +9,8 @@ from models.business_scheduled_message import BusinessScheduledMessage  # noqa: 
 from models.google_oauth import GoogleToken, GoogleAuthState  # noqa: F401
 from models.calendar_event import EventRow
 from models.tami_scheduled_message import TamiScheduledMessage
+from models.business_provider import BusinessProvider
+from models.client import Client
+from models.user_route import UserRoute
+
 

@@ -15,11 +15,14 @@ from fastapi.templating import Jinja2Templates
 from temporalio.client import Client
 
 from apps.webhook_ingest import persist_inbound
-from handlers.utility import get_business_id
+from handlers.utility import load_business_by_wa_id
+from models.business import Business
 from runtime.events import emit_event
 
 from workflows.booking_with_signal import InboundEvent
-from workflows.main import signal_booking_workflow, TASK_QUEUE
+from workflows.main import update_provider_workflow_with_start, update_client_workflow_with_start, TASK_QUEUE, resolve_user_route_async
+from db.session_async import get_async_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -196,18 +199,28 @@ async def webhook(
                         duplicates += 1
                         continue
 
-                    # Map phone_number_id + client_id -> your business_id (your existing rule)
-                    business_id = get_business_id(phone_number_id, client_id)
-
                     ev = _to_inbound_event(mid, client_id, m)
 
-                    await signal_booking_workflow(
-                        business_id=business_id,
-                        client_id=client_id,
-                        ev=ev,
-                        temporal_client=temporal_client,
-                    )
+                    db: AsyncSession = await get_async_db()
+                    route_result = await resolve_user_route_async(db, client_id)
+                  
+                    if route_result.is_provider:
+                        await update_provider_workflow_with_start(
+                            business_id=route_result.business_id,
+                            client_id=client_id,
+                            ev=ev,
+                            temporal_client=temporal_client,
+                        )
+                    else:
+                        await update_client_workflow_with_start(
+                            business_id=route_result.business_id,
+                            client_id=client_id,
+                            ev=ev,
+                            temporal_client=temporal_client,
+                        )
+
                     new_signals += 1
+                    wf_id = f"booking:{route_result.business_id}:{client_id}"
 
                     emit_event(
                         event="TEMPORAL_SIGNAL_SENT",
@@ -216,7 +229,7 @@ async def webhook(
                             "task_queue": TASK_QUEUE,
                             "event_id": mid,
                             "inbound_db_id": str(inbound_db_id) if inbound_db_id else None,
-                            "business_id": business_id,
+                            "business_id": route_result.business_id,
                             "client_id": client_id,
                             "phone_number_id": phone_number_id,
                         },

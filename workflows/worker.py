@@ -4,7 +4,8 @@ import signal
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from workflows.booking_with_signal import BookingWorkflow
+from workflows.client_session import ClientSessionWorkflow
+from workflows.provider_session import ProviderWorkflow
 from workflows.activities import (
     load_services,
     compute_slots,
@@ -22,7 +23,7 @@ async def main():
     worker = Worker(
         client,
         task_queue=TASK_QUEUE,
-        workflows=[BookingWorkflow],
+        workflows=[ClientSessionWorkflow],
         activities=[
             load_services,
             compute_slots,
