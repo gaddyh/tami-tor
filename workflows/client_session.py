@@ -8,15 +8,15 @@ from typing import Optional, Dict, Any
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from workflows.state import SessionState, SessionStep, InboundEvent
-
+from models.session_state import SessionState, SessionStep
+from models.input import InboundEvent
+from agents.core import get_llm_bootstrap
 
 DEFAULT_RETRY = RetryPolicy(
     initial_interval=timedelta(seconds=1),
     maximum_interval=timedelta(seconds=10),
     maximum_attempts=5,
 )
-
 
 @workflow.defn
 class ClientSessionWorkflow:
@@ -31,8 +31,11 @@ class ClientSessionWorkflow:
         if not ev.event_id:
             raise ValueError("event_id required")
 
+        text = ev.text.lower() if ev.text else ""
+        self.state.data.last_text_input = text
+
         # Global cancel
-        if ev.kind == "text" and ev.text and ev.text.lower() in {"cancel", "stop", "בטל"}:
+        if ev.kind == "text" and text in {"cancel", "stop", "בטל"}:
             self.state.cancelled = True
             self.state.step = SessionStep.CANCELLED
             return {"accepted": True, "action": "cancelled"}
@@ -80,8 +83,14 @@ class ClientSessionWorkflow:
             retry_policy=DEFAULT_RETRY,
         )
 
-        # 1) show services
+        # text message
+        if self.state.data.last_text_input:
+            # TODO: handle service selection from previous input
+            result = get_llm_bootstrap(self.state.data.last_text_input, services)
+            print(result)
+            pass
 
+        # 1) show services
         await workflow.execute_activity(
             "send_services_list",
             {

@@ -25,22 +25,14 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 from workflows.main import update_client_workflow_with_start
 
-TASK_QUEUE = "poc-task-queue"
-WF_ID = "client:demo:123"
-
-
-# ---------------------------
-# Models
-# ---------------------------
-
-from workflows.state import SessionState, InboundEvent
+from models.input import InboundEvent
 
 # ---------- Demo ----------
 async def run_demo() -> None:
     temporal = await Client.connect("localhost:7233")
 
     business_id = "demo-business"
-    client_id = "demo-client14"
+    client_id = "demo-client17"
     wf_id = f"client:{business_id}:{client_id}"
 
     # 0) start (INIT -> SERVICE_PICK happens in ingest)

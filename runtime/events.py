@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from db.session import SessionLocal
-from models.event_log import EventLog
+from db.models.event_log import EventLog
 from runtime.redis_client import redis_client
 from zoneinfo import ZoneInfo
 from observability.langfuse_client import langfuse

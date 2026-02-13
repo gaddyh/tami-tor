@@ -1,5 +1,3 @@
-from models.business import Business
-from workflows.booking_with_signal import BookingWorkflow, BookingParams, InboundEvent
 from workflows.client_session import ClientSessionWorkflow
 from workflows.provider_session import ProviderWorkflow
 from temporalio.client import Client
@@ -11,7 +9,7 @@ from temporalio import common
 from temporalio.client import Client
 
 from workflows.main import TASK_QUEUE
-
+from models.input import InboundEvent
 
 async def update_client_workflow_with_start(
     *,

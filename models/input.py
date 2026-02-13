@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from pydantic import BaseModel, Field
 from adapters.primitivies import ButtonReplyInfo, ListReplyInfo
-from models.business import Business
 
 # ---- Enums / literals (WhatsApp + internal only for now) ----
 class Source(str, Enum):
@@ -99,66 +98,27 @@ class MessageInputType(str, Enum):
 from pydantic import BaseModel, Field
 from typing import Optional
 
+# ----------------------------
+# Inbound event (workflow-safe)
+# ----------------------------
 
-class MessageEnvelope(BaseModel):
-    # Identity
-    inbound_message_id: str = Field(..., description="WhatsApp inbound message id")
-    sender_phone: str = Field(..., description="E.164 phone number of sender")
+InboundKind = Literal["text", "button", "list", "audio", "media", "location", "unknown"]
 
-    # Correlation (reply-to outbound)
-    context_message_id: Optional[str] = Field(
-        None, description="Outbound message id this message replies to (templates / ops)"
-    )
+import dataclasses
 
-    # Classification
-    kind: MessageInputType
-
-    is_provider: bool
-    # Payload (exactly one should be relevant based on kind)
-    button_id: Optional[str] = None
-    list_id: Optional[str] = None
+@dataclasses.dataclass
+class InboundEvent:
+    event_id: str
+    client_id: str
+    kind: InboundKind
     text: Optional[str] = None
-    audio_transcript: Optional[str] = None
+    list_id: Optional[str] = None
+    button_id: Optional[str] = None
+    media: Optional[Dict[str, Any]] = None
 
-    # Optional metadata (safe to ignore initially)
-    timestamp: Optional[str] = None
 
-class NormalizedInput(BaseModel):
-    envelope: MessageEnvelope
-    business_id: str
+# ----------------------------
+# Session state
+# ----------------------------
 
-def normalize_input(inp: In, business: Business) -> NormalizedInput:
-    # 1) Decide message kind (interactive always wins)
-    if inp.button_reply:
-        kind = MessageInputType.BTN
-    elif inp.list_reply:
-        kind = MessageInputType.LIST
-    else:
-        kind = MessageInputType.TEXT
-
-    # 2) Extract context message id (reply-to outbound)
-    context_message_id = None
-    if inp.button_reply:
-        context_message_id = getattr(inp.button_reply, "context_wamid", None)
-    elif inp.list_reply:
-        context_message_id = getattr(inp.list_reply, "context_wamid", None)
-
-    # 3) Build envelope
-    envelope = MessageEnvelope(
-        inbound_message_id=inp.idempotency_key,
-        sender_phone=inp.user_id,
-        context_message_id=context_message_id,
-        kind=kind,
-        is_provider=business.is_provider(inp.user_id),
-        button_id=inp.button_reply.payload if inp.button_reply else None,
-        list_id=inp.list_reply.payload if inp.list_reply else None,
-        text=inp.text,
-        audio_transcript=None,
-        timestamp=inp.current_datetime,
-    )
-
-    # 4) Wrap
-    return NormalizedInput(
-        business_id=business.business_id,
-        envelope=envelope,
-    )
+InboundKindSmall = Literal["text", "button", "list", "audio", "unknown"]

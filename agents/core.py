@@ -9,8 +9,7 @@ from typing import Optional
 
 from agents.init_text import build_system_prompt
 from runtime.events import now_israel
-from models.business import Service
-
+from models.service import Service
 # Load env
 load_dotenv(".venv/.env")
 

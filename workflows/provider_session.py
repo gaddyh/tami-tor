@@ -25,25 +25,11 @@ from temporalio.client import Client, WithStartWorkflowOperation
 from temporalio.worker import Worker
 from temporalio import common
 
+from models.session_state import SessionState
+from models.input import InboundEvent
 
 TASK_QUEUE = "poc-task-queue"
 WF_ID = "client:demo:123"
-
-
-# ---------------------------
-# Models
-# ---------------------------
-
-@dataclass
-class InboundEvent:
-    message_id: str
-    text: str
-
-
-@dataclass
-class SessionState:
-    count: int = 0
-    last_text: Optional[str] = None
 
 
 # ---------------------------
@@ -60,12 +46,12 @@ class ProviderWorkflow:
     @workflow.update
     def ingest(self, ev: InboundEvent) -> dict:
         # Keep update handler fast: validate + dedupe + enqueue + ACK
-        if not ev.message_id:
-            raise ValueError("message_id required")
-        if ev.message_id in self._seen:
+        if not ev.event_id:
+            raise ValueError("event_id required")
+        if ev.event_id in self._seen:
             return {"accepted": True, "deduped": True}
 
-        self._seen.add(ev.message_id)
+        self._seen.add(ev.event_id)
         self._inbox.append(ev)
         return {"accepted": True, "deduped": False}
 

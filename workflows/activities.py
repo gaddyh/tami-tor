@@ -4,15 +4,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any
 from temporalio import activity
 
-from models import business
-
-
-@dataclass
-class Service:
-    id: str
-    name: str
-    duration_min: int
-
+from models.service import Service
 
 @dataclass
 class Slot:
@@ -26,8 +18,8 @@ async def load_services(dict: Dict[str, Any]) -> List[Service]:
     # stub: replace with DB
     business_id = dict["business_id"]
     return [
-        Service(id="haircut", name="Haircut", duration_min=30),
-        Service(id="beard", name="Beard", duration_min=15),
+        Service(id="haircut", name="Haircut", duration_min=30, price=25.0),
+        Service(id="beard", name="Beard", duration_min=15, price=15.0),
     ]
 
 
