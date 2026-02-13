@@ -1,85 +1,215 @@
-# poc_update_with_start_onefile.py
+# workflows/client_session.py
 
 from __future__ import annotations
 
-import asyncio
-import sys
-from collections import deque
-from typing import Deque
+from datetime import timedelta
+from typing import Optional, Dict, Any
 
 from temporalio import workflow
-from temporalio.client import Client, WithStartWorkflowOperation
-from temporalio.worker import Worker
-from temporalio import common
+from temporalio.common import RetryPolicy
 
-from workflows.state import SessionState, InboundEvent, SessionStep
+from workflows.state import SessionState, SessionStep, InboundEvent
+
+
+DEFAULT_RETRY = RetryPolicy(
+    initial_interval=timedelta(seconds=1),
+    maximum_interval=timedelta(seconds=10),
+    maximum_attempts=5,
+)
+
 
 @workflow.defn
 class ClientSessionWorkflow:
     def __init__(self) -> None:
         self.state = SessionState()
-        self._inbox: Deque[InboundEvent] = deque()
-        self._seen: set[str] = set()
-        self._processed = 0  # just for demo exit condition
+        self._business_id: Optional[str] = None
+        self._client_id: Optional[str] = None
 
-    # ---------- UPDATE ----------
+    # ---------------- UPDATE ----------------
     @workflow.update
-    def ingest(self, ev: InboundEvent) -> dict:
+    def ingest(self, ev: InboundEvent) -> Dict[str, Any]:
         if not ev.event_id:
             raise ValueError("event_id required")
 
-        if ev.event_id in self._seen:
-            return {"accepted": True, "deduped": True}
+        # Global cancel
+        if ev.kind == "text" and ev.text and ev.text.lower() in {"cancel", "stop", "בטל"}:
+            self.state.cancelled = True
+            self.state.step = SessionStep.CANCELLED
+            return {"accepted": True, "action": "cancelled"}
 
-        self._seen.add(ev.event_id)
-        self._inbox.append(ev)
+        # ✅ Content-based mapping (robust to early/out-of-order inputs)
+        if ev.list_id:
+            if ev.list_id.startswith("svc:"):
+                self.state.data.service_id = ev.list_id
+                return {"accepted": True, "mapped": "service_id"}
+            if ev.list_id.startswith("slot:"):
+                self.state.data.chosen_slot_id = ev.list_id
+                return {"accepted": True, "mapped": "chosen_slot_id"}
 
-        return {"accepted": True, "deduped": False}
+        if ev.kind == "button" and ev.button_id in ("confirm", "cancel"):
+            self.state.data.confirmed = (ev.button_id == "confirm")
+            return {"accepted": True, "mapped": "confirmed"}
 
-    # ---------- QUERY ----------
+        return {"accepted": True, "mapped": None}
+
+
+    # ---------------- QUERY ----------------
     @workflow.query
     def get_state(self) -> dict:
         return {
             "step": self.state.step,
+            "cancelled": self.state.cancelled,
             "service_id": self.state.data.service_id,
             "chosen_slot_id": self.state.data.chosen_slot_id,
-            "cancelled": self.state.cancelled,
-            "last_event_id": self.state.last_event_id,
+            "confirmed": self.state.data.confirmed,
         }
 
-    # ---------- RUN LOOP ----------
+    # ---------------- RUN ----------------
     @workflow.run
-    async def run(self) -> None:
-        while True:
-            await workflow.wait_condition(lambda: len(self._inbox) > 0)
+    async def run(self) -> dict:
+        wf_id = workflow.info().workflow_id
+        self._business_id, self._client_id = self._parse_wf_id(wf_id)
 
-            ev = self._inbox.popleft()
-            self._processed += 1
+        self.state.step = SessionStep.SERVICE_PICK
 
-            # Persist minimal state
-            self.state.last_event_id = ev.event_id
-            self.state.last_inbound_kind = ev.kind
+        # 0) load services
+        services = await workflow.execute_activity(
+            "load_services",
+            {"business_id": self._business_id},
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
 
-            # --- Basic state machine demo ---
-            if self.state.step == SessionStep.INIT:
-                if ev.kind == "text":
-                    self.state.step = SessionStep.SERVICE_PICK
+        # 1) show services
 
-            elif self.state.step == SessionStep.SERVICE_PICK:
-                if ev.kind == "list" and ev.list_id:
-                    self.state.data.service_id = ev.list_id
-                    self.state.step = SessionStep.SLOTS_PICK
+        await workflow.execute_activity(
+            "send_services_list",
+            {
+                "client_id": self._client_id,
+                "services": services,
+            },
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
 
-            elif self.state.step == SessionStep.SLOTS_PICK:
-                if ev.kind == "list" and ev.list_id:
-                    self.state.data.chosen_slot_id = ev.list_id
-                    self.state.step = SessionStep.CONFIRM
+        await workflow.wait_condition(
+            lambda: self.state.cancelled or self.state.data.service_id is not None
+        )
 
-            elif self.state.step == SessionStep.CONFIRM:
-                if ev.kind == "button" and ev.button_id == "confirm":
-                    self.state.data.confirmed = True
-                    self.state.step = SessionStep.DONE
+        if self.state.cancelled:
+            return await self._finish_cancel("service_pick")
 
-            # demo exit condition (remove in real system)
-            if self._processed >= 3:
-                return
+        # 2) compute + show slots
+        await workflow.execute_activity(
+            "send_text",
+            {
+                "client_id": self._client_id,
+                "text": "מחשב זמינות...",
+            },
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
+
+        self.state.step = SessionStep.SLOTS_PICK
+
+        slots = await workflow.execute_activity(
+            "compute_slots",
+            {
+                "business_id": self._business_id,
+                "service_id": self.state.data.service_id,
+            },
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=DEFAULT_RETRY,
+        )
+
+
+        await workflow.execute_activity(
+            "send_slots_list",
+            {
+                "client_id": self._client_id,
+                "slots": slots,
+            },
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
+
+        await workflow.wait_condition(
+            lambda: self.state.cancelled or self.state.data.chosen_slot_id is not None
+        )
+
+        if self.state.cancelled:
+            return await self._finish_cancel("slots_pick")
+
+        # 3) confirm
+        self.state.step = SessionStep.CONFIRM
+
+        await workflow.execute_activity(
+            "send_confirm_buttons",
+            {
+                "client_id": self._client_id,
+                "service_id": self.state.data.service_id,
+                "slot_id": self.state.data.chosen_slot_id,
+            },
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
+
+        await workflow.wait_condition(
+            lambda: self.state.cancelled or self.state.data.confirmed is not None
+        )
+
+        if self.state.cancelled or self.state.data.confirmed is False:
+            self.state.step = SessionStep.CANCELLED
+            return await self._finish_cancel("confirm")
+
+        # 4) create booking
+        booking_id = await workflow.execute_activity(
+            "create_booking",
+            {
+                "business_id": self._business_id,
+                "client_id": self._client_id,
+                "service_id": self.state.data.service_id,
+                "slot_id": self.state.data.chosen_slot_id,
+            },
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=DEFAULT_RETRY,
+        )
+
+        self.state.step = SessionStep.DONE
+
+        await workflow.execute_activity(
+            "send_text",
+            {
+                "client_id": self._client_id,
+                "text": f"אושר ✅ הזמנה נוצרה: {booking_id}",
+            },
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
+
+        return {
+            "ok": True,
+            "status": "done",
+            "booking_id": booking_id,
+        }
+
+    # ---------------- Helpers ----------------
+
+    def _parse_wf_id(self, wf_id: str) -> tuple[str, str]:
+        # expected: client:{business_id}:{client_id}
+        parts = wf_id.split(":", 2)
+        if len(parts) != 3 or parts[0] != "client":
+            raise ValueError(f"bad workflow id: {wf_id}")
+        return parts[1], parts[2]
+
+    async def _finish_cancel(self, at: str) -> dict:
+        await workflow.execute_activity(
+            "send_text",
+            {
+                "client_id": self._client_id,
+                "text": "הבקשה בוטלה ❌",
+            },
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=DEFAULT_RETRY,
+        )
+        return {"ok": False, "status": "cancelled", "at": at}

@@ -22,7 +22,7 @@ def main():
     print(f"Starting {N_WORKERS} worker processes", flush=True)
     for _ in range(N_WORKERS):
         p = subprocess.Popen(
-            [sys.executable, "-m", "apps.worker"],
+            [sys.executable, "-m", "workflows.worker"],
         )
         processes.append(p)
 

@@ -35,66 +35,57 @@ WF_ID = "client:demo:123"
 
 from workflows.state import SessionState, InboundEvent
 
-# ---------------------------
-# Workflow
-# ---------------------------
+# ---------- Demo ----------
+async def run_demo() -> None:
+    temporal = await Client.connect("localhost:7233")
 
-@workflow.defn
-class ClientSessionWorkflow:
-    def __init__(self) -> None:
-        self.state = SessionState()
-        self._inbox: Deque[InboundEvent] = deque()
-        self._seen: set[str] = set()
-
-    @workflow.update
-    def ingest(self, ev: InboundEvent) -> dict:
-        # Keep update handler fast: validate + dedupe + enqueue + ACK
-        if not ev.message_id:
-            raise ValueError("message_id required")
-        if ev.message_id in self._seen:
-            return {"accepted": True, "deduped": True}
-
-        self._seen.add(ev.message_id)
-        self._inbox.append(ev)
-        return {"accepted": True, "deduped": False}
-
-    @workflow.query
-    def get_state(self) -> dict:
-        return {"count": self.state.count, "last_text": self.state.last_text}
-
-    @workflow.run
-    async def run(self) -> None:
-        # Process exactly 3 messages then complete (so the demo ends)
-        while self.state.count < 3:
-            await workflow.wait_condition(lambda: len(self._inbox) > 0)
-            ev = self._inbox.popleft()
-            self.state.count += 1
-            self.state.last_text = ev.text
-
-
-# ---------------------------
-# Worker
-# ---------------------------
-
-from temporalio.client import Client
-
-from workflows.main import TASK_QUEUE
-
-
-# ---------------------------
-# Client demo (3 update-with-start calls)
-# ---------------------------
-async def run_demo():
-    client = await Client.connect("localhost:7233")
     business_id = "demo-business"
-    client_id = "demo-client1"
-    await update_client_workflow_with_start(temporal_client=client, business_id=business_id, client_id=client_id, ev=InboundEvent("e1", "client1", "text", text="hi"))
-    await update_client_workflow_with_start(temporal_client=client, business_id=business_id, client_id=client_id, ev=InboundEvent("e2", "client1", "list", list_id="svc:haircut"))
-    await update_client_workflow_with_start(temporal_client=client, business_id=business_id, client_id=client_id, ev=InboundEvent("e3", "client1", "list", list_id="slot:10am"))
+    client_id = "demo-client14"
+    wf_id = f"client:{business_id}:{client_id}"
 
-    handle = client.get_workflow_handle(WF_ID)
-    await handle.result()
-    print("Workflow completed ✓")
+    # 0) start (INIT -> SERVICE_PICK happens in ingest)
+    await update_client_workflow_with_start(
+        temporal_client=temporal,
+        business_id=business_id,
+        client_id=client_id,
+        ev=InboundEvent(event_id="e1", client_id=client_id, kind="text", text="hi"),
+    )
+
+    # 1) pick service
+    await update_client_workflow_with_start(
+        temporal_client=temporal,
+        business_id=business_id,
+        client_id=client_id,
+        ev=InboundEvent(event_id="e2", client_id=client_id, kind="list", list_id="svc:haircut"),
+    )
+
+    # 2) pick slot
+    await update_client_workflow_with_start(
+        temporal_client=temporal,
+        business_id=business_id,
+        client_id=client_id,
+        ev=InboundEvent(event_id="e3", client_id=client_id, kind="list", list_id="slot:10am"),
+    )
+
+    # 3) confirm
+    await update_client_workflow_with_start(
+        temporal_client=temporal,
+        business_id=business_id,
+        client_id=client_id,
+        ev=InboundEvent(event_id="e4", client_id=client_id, kind="button", button_id="confirm"),
+    )
+
+    # Now it should actually complete
+    handle = temporal.get_workflow_handle(wf_id)
+    result = await handle.result()
+    print("Workflow completed ✓", result)
+
+    # Optional: query final state
+    from workflows.client_session import ClientSessionWorkflow
+    st = await handle.query(ClientSessionWorkflow.get_state)
+    print("final state ->", st)
+
+
 
 
 # ---------------------------
