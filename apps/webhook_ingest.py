@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
-from models.inbound_message import InboundMessage
+from db.models.inbound_message import InboundMessage
 
 
 def persist_inbound(
