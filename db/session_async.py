@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
@@ -33,7 +34,7 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
 )
 
-
+@asynccontextmanager
 async def get_async_db() -> AsyncSession:
     async with AsyncSessionLocal() as db:
         yield db

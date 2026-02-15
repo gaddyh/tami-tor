@@ -128,14 +128,14 @@ async def _run_update(temporal: Client, business_id: str, client_id: str) -> Non
 async def main_async(mode: str) -> None:
     temporal = await Client.connect("localhost:7233")
 
-    business_id = "demo-business"
+    business_id = "demo-salon"
     # Use a different client_id per mode to avoid collisions during dev
     client_id = {
-        "create": "demo-client-create2",
-        "read": "demo-client-read2",
-        "delete": "demo-client-delete2",
-        "update": "demo-client-update2",
-    }.get(mode, "demo-client-create2")
+        "create": "demo-client-create4",
+        "read": "demo-client-read4",
+        "delete": "demo-client-delete4",
+        "update": "demo-client-update4",
+    }.get(mode, "demo-client-create4")
 
     if mode == "create":
         await _run_create(temporal, business_id, client_id)

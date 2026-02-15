@@ -5,6 +5,9 @@ from typing import List, Dict, Any
 from temporalio import activity
 
 from models.service import Service
+from db.ops.business import get_services_by_business_id
+from db.session_async import get_async_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 @dataclass
 class Slot:
@@ -17,11 +20,8 @@ class Slot:
 async def load_services(dict: Dict[str, Any]) -> List[Service]:
     # stub: replace with DB
     business_id = dict["business_id"]
-    return [
-        Service(id="haircut", name="Haircut", duration_min=30, price=25.0),
-        Service(id="beard", name="Beard", duration_min=15, price=15.0),
-    ]
-
+    async with get_async_db() as db:
+        return await get_services_by_business_id(db, business_id)
 
 @activity.defn
 async def compute_slots(payload: Dict[str, Any]) -> List[Slot]:
