@@ -1,4 +1,4 @@
-from workflows.client_session import ClientSessionWorkflow
+from workflows.client_session.workflow import ClientSessionWorkflow
 from workflows.provider_session import ProviderWorkflow
 from temporalio.client import Client
 

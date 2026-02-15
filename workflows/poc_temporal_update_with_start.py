@@ -32,7 +32,7 @@ async def run_demo() -> None:
     temporal = await Client.connect("localhost:7233")
 
     business_id = "demo-business"
-    client_id = "demo-client17"
+    client_id = "demo-client24"
     wf_id = f"client:{business_id}:{client_id}"
 
     # 0) start (INIT -> SERVICE_PICK happens in ingest)
@@ -73,7 +73,7 @@ async def run_demo() -> None:
     print("Workflow completed ✓", result)
 
     # Optional: query final state
-    from workflows.client_session import ClientSessionWorkflow
+    from workflows.client_session.workflow import ClientSessionWorkflow
     st = await handle.query(ClientSessionWorkflow.get_state)
     print("final state ->", st)
 

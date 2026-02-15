@@ -28,6 +28,7 @@ class SessionFlow(str, Enum):
 
 
 class SessionStep(str, Enum):
+    ROUTE = "route"
     OWNER_CLIENT_DETAILS = "owner_client_details"
     INIT = "init"
     SERVICE_PICK = "service_pick"
@@ -39,7 +40,7 @@ class SessionStep(str, Enum):
 
  
 DEFAULT_FLOW = SessionFlow.CLIENT_CREATE
-DEFAULT_STEP = SessionStep.INIT
+DEFAULT_STEP = SessionStep.ROUTE
 DEFAULT_VERSION = 1
 
 class SessionData(BaseModel):
@@ -68,7 +69,7 @@ class SessionData(BaseModel):
 class SessionState(BaseModel):
     actor: Actor = Actor.CLIENT
     flow: SessionFlow = SessionFlow.CLIENT_CREATE
-    step: SessionStep = SessionStep.INIT
+    step: SessionStep = SessionStep.ROUTE
     input_type: InputType = InputType.TEXT
     error_message: Optional[str] = None
     data: SessionData = SessionData()

@@ -4,8 +4,7 @@ import signal
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from workflows.client_session import ClientSessionWorkflow
-from workflows.provider_session import ProviderWorkflow
+from workflows.client_session.workflow import ClientSessionWorkflow
 from workflows.activities import (
     load_services,
     compute_slots,
@@ -15,6 +14,9 @@ from workflows.activities import (
     send_confirm_buttons,
     create_booking,
 )
+from agents.intent.core import llm_route_intent
+from agents.intent.bootstrap import llm_extract_bootstrap
+from agents.intent.step_delta import llm_step_extract
 from workflows.main import TASK_QUEUE
 
 async def main():
@@ -32,6 +34,9 @@ async def main():
             send_slots_list,
             send_confirm_buttons,
             create_booking,
+            llm_route_intent,
+            llm_extract_bootstrap,
+            llm_step_extract
         ],
     )
 
