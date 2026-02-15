@@ -91,7 +91,7 @@ class ClientSessionWorkflow:
             retry_policy=DEFAULT_RETRY,
         )
 
-        self.state.step = SessionStep.ROUTE if hasattr(SessionStep, "ROUTE") else SessionStep.SERVICE_PICK
+        self.state.step = SessionStep.ROUTE
         await workflow.wait_condition(lambda: self.state.cancelled or self.inbox.initial is not None)
         if self.state.cancelled:
             return await self.finish_cancel("route")
