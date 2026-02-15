@@ -15,11 +15,9 @@ from fastapi.templating import Jinja2Templates
 from temporalio.client import Client
 
 from apps.webhook_ingest import persist_inbound
-from handlers.utility import load_business_by_wa_id
-from models.business import Business
 from runtime.events import emit_event
 
-from workflows.booking_with_signal import InboundEvent
+from models.input import InboundEvent
 from workflows.main import update_provider_workflow_with_start, update_client_workflow_with_start, TASK_QUEUE, resolve_user_route_async
 from db.session_async import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
