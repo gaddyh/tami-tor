@@ -46,6 +46,9 @@ class ClientSessionWorkflow:
         assert self._client_id
         return self._client_id
 
+    def apply_common_delta(self, delta: Dict[str, Any]) -> None:
+        self.state.data.update(delta)
+
     @workflow.update
     def ingest(self, ev: InboundEvent) -> Dict[str, Any]:
         if not ev.event_id:
