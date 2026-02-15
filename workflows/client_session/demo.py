@@ -131,11 +131,11 @@ async def main_async(mode: str) -> None:
     business_id = "demo-business"
     # Use a different client_id per mode to avoid collisions during dev
     client_id = {
-        "create": "demo-client-create",
-        "read": "demo-client-read",
-        "delete": "demo-client-delete",
-        "update": "demo-client-update",
-    }.get(mode, "demo-client-create")
+        "create": "demo-client-create2",
+        "read": "demo-client-read2",
+        "delete": "demo-client-delete2",
+        "update": "demo-client-update2",
+    }.get(mode, "demo-client-create2")
 
     if mode == "create":
         await _run_create(temporal, business_id, client_id)
