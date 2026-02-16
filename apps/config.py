@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 from fastapi import Request, Depends
 from temporalio.client import Client
 from adapters.cloud_api import CloudAPIAdapter
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 load_dotenv(".venv/.env")
 
@@ -55,3 +57,13 @@ tami_tor_alin_wa_id = "982974261547358"
 def get_adapter_global() -> CloudAPIAdapter:
     adapter = CloudAPIAdapter(phone_number_id=tami_tor_wa_id)
     return adapter
+
+def get_timezone() -> ZoneInfo:
+    return ZoneInfo("Asia/Jerusalem")
+
+def get_timezone_str() -> str:
+    return "Asia/Jerusalem"
+    
+def now_israel():
+    tz = get_timezone()
+    return datetime.now(tz)

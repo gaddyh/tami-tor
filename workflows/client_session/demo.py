@@ -19,7 +19,6 @@ async def _run_create(temporal: Client, business_id: str, client_id: str) -> Non
         client_id=client_id,
         ev=InboundEvent(event_id="c1", client_id=client_id, kind="text", text="hi"),
     )
-    sleep(3)
     await update_client_workflow_with_start(
         temporal_client=temporal,
         business_id=business_id,

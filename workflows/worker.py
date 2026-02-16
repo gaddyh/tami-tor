@@ -13,6 +13,7 @@ from workflows.activities import (
     send_slots_list,
     send_confirm_buttons,
     create_booking,
+    transcribe_audio
 )
 from agents.intent.core import llm_route_intent
 from agents.intent.bootstrap import llm_extract_bootstrap
@@ -36,7 +37,8 @@ async def main():
             create_booking,
             llm_route_intent,
             llm_extract_bootstrap,
-            llm_step_extract
+            llm_step_extract,
+            transcribe_audio
         ],
     )
 

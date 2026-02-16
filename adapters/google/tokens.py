@@ -10,8 +10,8 @@ from google.auth.transport.requests import Request as GoogleRequest
 from google.auth.exceptions import RefreshError
 
 from db.session import SessionLocal
-from models.session import Session
-from models.google_oauth import GoogleToken, GoogleAuthState
+from db.models.session import Session
+from db.models.google_oauth import GoogleToken, GoogleAuthState
 
 
 def get_valid_credentials(user_id: str) -> Optional[Credentials]:
