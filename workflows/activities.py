@@ -76,7 +76,7 @@ async def compute_slots(payload: Dict[str, Any]) -> List[Slot]:
         activity.logger.info("SEND_TEXT -> %s", res)
         return []
 
-    if is_exact_start_match(items, start_time):
+    if is_exact_start_match(items, start_dt):
         chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
         chosen = chunked.chunks[0].slots[0]
         slot = TimeSlot.model_validate(chosen)
