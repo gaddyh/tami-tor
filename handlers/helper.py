@@ -65,6 +65,7 @@ def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_p
     Returns:
         Dictionary formatted for WhatsApp Cloud API List Message
     """
+    chunked_availability = ChunkedAvailability.model_validate(chunked_availability)
     if chunk_index >= chunked_availability.total_chunks:
         return None
     
