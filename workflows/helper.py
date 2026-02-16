@@ -218,6 +218,7 @@ def handle_list_response(
         ListResponse (one of the response types)
     """
     # Navigation handling - Go Back
+    chunked_availability = ChunkedAvailability.model_validate(chunked_availability)
     if user_selection.startswith("nav_back_"):
         if user_selection == "nav_back_disabled":
             return DisabledActionResponse(
