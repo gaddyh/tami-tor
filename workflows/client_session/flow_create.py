@@ -45,7 +45,9 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         )
         if wf.state.cancelled:
             return await wf.finish_cancel("service_pick")
-
+    
+    service_name = next((s["name"] for s in services if s["id"] == wf.state.data.service_id), None)
+    
     await workflow.execute_activity(
         "send_text",
         {"client_id": wf.client_id, "text": "מחשב זמינות..."},
@@ -103,7 +105,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
     #wf.state.data.confirmed = None
     await workflow.execute_activity(
         "send_confirm_buttons",
-        {"client_id": wf.client_id, "service_id": service_id, "slot_id": wf.state.data.chosen_slot_id},
+        {"client_id": wf.client_id, "service_name": service_name, "slot": wf.state.data.chosen_slot},
         start_to_close_timeout=timedelta(seconds=10),
         retry_policy=DEFAULT_RETRY,
     )

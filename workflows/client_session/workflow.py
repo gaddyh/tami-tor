@@ -17,6 +17,7 @@ from workflows.client_session.flow_create import run_create
 from workflows.client_session.flow_read import run_read
 from workflows.client_session.flow_delete import run_delete
 from workflows.client_session.flow_update import run_update
+from workflows.helper import handle_list_response, ListResponse, ActionType
 
 DEFAULT_RETRY = RetryPolicy(
     initial_interval=timedelta(seconds=1),
@@ -64,9 +65,13 @@ class ClientSessionWorkflow:
 
         if ev.list_id:
             if ev.list_id.startswith("svc:"):
-                self.state.data.service_id = ev.list_id
+                self.state.data.service_id = ev.list_id.replace("svc:", "", 1)
             elif ev.list_id.startswith("slot:"):
-                self.state.data.chosen_slot_id = ev.list_id
+                id = ev.list_id.replace("slot:", "", 1)
+                response: ListResponse = handle_list_response(id, self.state.data.chunked)
+                if response.action == ActionType.SLOT_SELECTED:
+                    self.state.data.chosen_slot_id = id
+                    self.state.data.chosen_slot = response.slot
             elif ev.list_id.startswith("booking:"):
                 self.state.data.booking_id = ev.list_id.replace("booking:", "", 1)
 

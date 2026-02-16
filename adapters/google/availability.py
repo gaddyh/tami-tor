@@ -4,7 +4,7 @@ import pytz
 from collections import defaultdict
 from adapters.google.tokens import get_valid_credentials
 from typing import List
-from handlers.helper import create_whatsapp_list_message
+from workflows.helper import create_whatsapp_list_message
 from models.availability import TimeSlot, SlotChunk, ChunkedAvailability
 from runtime.events import now_israel
 

@@ -15,9 +15,8 @@ from adapters.cloud_api import CloudAPIAdapter
 from adapters.google.availability import get_available_slots, divide_chunked_into_slots, is_exact_start_match
 from models.availability import ChunkedAvailability
 from models.availability import TimeSlot
-from handlers.helper import build_hebrew_slot_confirmation, create_whatsapp_list_message
+from workflows.helper import build_hebrew_slot_confirmation, create_whatsapp_list_message
 from db.models.business import Business
-from handlers.helper import create_whatsapp_list_message
 
 @dataclass
 class Slot:
@@ -136,7 +135,16 @@ async def send_slots_list(payload: Dict[str, Any]) -> None:
 
 @activity.defn
 async def send_confirm_buttons(payload: Dict[str, Any]) -> None:
+    adapter: CloudAPIAdapter = get_adapter_global()
+    slot = payload["slot"]
+    client_id = payload["client_id"]
+    service_name = payload["service_name"]
     activity.logger.info("SEND_CONFIRM_BUTTONS -> %s", payload)
+    payload = build_hebrew_slot_confirmation(slot, service_name)
+    await adapter.send_action_buttons(
+        recipient=client_id,
+        message=payload,
+    )
 
 
 @activity.defn

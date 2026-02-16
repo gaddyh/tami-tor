@@ -56,7 +56,7 @@ class SessionData(BaseModel):
     duration: Optional[int] = None
     
     chunked:Optional[ChunkedAvailability] = None
-    chunked_index: Optional[int] = None
+    chunked_index: int = 0
     bootstrap: Optional[CalendarEventBootstrap] = None
     chosen_slot:Optional[TimeSlot] = None
     chosen_slot_id: Optional[str] = None
