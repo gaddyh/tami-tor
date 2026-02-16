@@ -193,8 +193,8 @@ async def webhook(
 
                     ev = _to_inbound_event(mid, client_id, m)
 
-                    db: AsyncSession = await get_async_db()
-                    route_result = await resolve_user_route_async(db, client_id)
+                    async with get_async_db() as db:
+                        route_result = await resolve_user_route_async(db, client_id)
                   
                     if route_result.is_provider:
                         await update_provider_workflow_with_start(
