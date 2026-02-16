@@ -82,3 +82,57 @@ async def resolve_user_route_async(db: AsyncSession, user_id: str) -> Optional[R
 
     business_id, is_provider = row
     return RouteResult(business_id=business_id, is_provider=bool(is_provider))
+
+if __name__ == "__main__":
+    import asyncio
+    from sqlalchemy import select
+
+    from db.session_async import get_async_db
+    from models.user_route import UserRoute
+
+    async def upsert_user_route(
+        *,
+        db,
+        user_id: str,
+        business_id: str,
+        is_provider: bool,
+    ) -> UserRoute:
+        stmt = select(UserRoute).where(UserRoute.user_id == user_id).limit(1)
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+
+        if existing:
+            existing.business_id = business_id
+            existing.is_provider = is_provider
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
+        row = UserRoute(
+            user_id=user_id,
+            business_id=business_id,
+            is_provider=is_provider,
+        )
+        db.add(row)
+        await db.commit()
+        await db.refresh(row)
+        return row
+
+    async def main():
+        user_id = "972546610653"
+        business_id = "demo-salon"   
+        is_provider = False
+
+        async with get_async_db() as db:
+            r = await upsert_user_route(
+                db=db,
+                user_id=user_id,
+                business_id=business_id,
+                is_provider=is_provider,
+            )
+            print("Created/updated route:", r.user_id, r.business_id, r.is_provider)
+
+            # verify your resolver
+            route = await resolve_user_route_async(db, user_id)
+            print("Route result:", route)
+
+    asyncio.run(main())

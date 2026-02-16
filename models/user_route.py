@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, Boolean, func, UniqueConstraint, Index, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-
+from db.models.business import Business
 from db.base import Base
 
 
@@ -35,7 +35,7 @@ class UserRoute(Base):
 
     business_id: Mapped[str] = mapped_column(
         String(64),
-        ForeignKey("businesses.business_id"),
+        ForeignKey(Business.business_id),
         nullable=False,
     )
 
@@ -57,3 +57,18 @@ class UserRoute(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    from db.session_async import get_async_db
+    from workflows.main import resolve_user_route_async
+
+    async def main():
+        async with get_async_db() as db:
+            route_result = await resolve_user_route_async(db, "9725123456789")
+            print(route_result)
+
+    asyncio.run(main())
