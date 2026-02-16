@@ -113,7 +113,7 @@ async def send_text(payload: Dict[str, Any]) -> None:
 async def send_services_list(payload: Dict[str, Any]) -> None:
     services = payload["services"]
     client_id = payload["client_id"]
-    rows = [{"id": s["id"], "title": s["name"]} for s in services]
+    rows = [{"id": f"svc:{s['id']}", "title": s["name"]} for s in services]
     adapter: CloudAPIAdapter = get_adapter_global()
     res = await adapter.send_dynamic_list_message(
         to_phone=client_id,
