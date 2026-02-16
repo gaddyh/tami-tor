@@ -86,7 +86,7 @@ async def compute_slots(payload: Dict[str, Any]) -> List[Slot]:
             recipient=client_id,
             message=payload,
         )
-        return
+        return [slot]
 
     chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
 
@@ -95,6 +95,7 @@ async def compute_slots(payload: Dict[str, Any]) -> List[Slot]:
         to_phone=client_id,
         interactive_payload=payload,
     )
+    return chunked.chunks
 
 
 @activity.defn
