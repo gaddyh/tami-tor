@@ -5,7 +5,6 @@ from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
 from collections.abc import Mapping
-from handlers.inbound.helper import ListResponse, NavigationResponse, SlotSelectionResponse, DisabledActionResponse, UnknownActionResponse, ActionType, NavigationDirection 
 
 # Updated function to return Pydantic models
 def divide_slots_into_chunks(availability_data, chunk_size=8) -> ChunkedAvailability:
@@ -153,38 +152,59 @@ def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_p
     
     return message
 
-# Usage example with type safety
-def process_user_selection(user_selection: str, chunked_availability: ChunkedAvailability):
-    """Example of how to use the response handler with type checking"""
-    response = handle_list_response(user_selection, chunked_availability)
-    
-    # Type-safe handling using match (Python 3.10+)
-    match response.action:
-        case ActionType.NAVIGATE:
-            # TypeScript-style narrowing - response is now NavigationResponse
-            print(f"Navigating {response.direction} to chunk {response.chunk_index}")
-            return response.message
-        
-        case ActionType.SLOT_SELECTED:
-            # response is now SlotSelectionResponse
-            print(f"Slot selected: {response.slot.date} at {response.slot.start_time}")
-            # Process booking with response.slot
-            return response.message
-        
-        case ActionType.DISABLED:
-            # response is now DisabledActionResponse
-            print(f"Disabled action: {response.message}")
-            return None
-        
-        case ActionType.UNKNOWN:
-            # response is now UnknownActionResponse
-            print(f"Unknown action: {response.message}")
-            return None
+from pydantic import BaseModel, Field
+from typing import Optional, Literal, Dict, Any
+from enum import Enum
+
+
+class ActionType(str, Enum):
+    """Types of actions from user selection"""
+    NAVIGATE = "navigate"
+    SLOT_SELECTED = "slot_selected"
+    DISABLED = "disabled"
+    UNKNOWN = "unknown"
+
+
+class NavigationDirection(str, Enum):
+    """Navigation directions"""
+    BACK = "back"
+    NEXT = "next"
+
+
+class NavigationResponse(BaseModel):
+    """Response for navigation actions"""
+    action: Literal[ActionType.NAVIGATE]
+    direction: NavigationDirection
+    chunk_index: int = Field(..., ge=0)
+    message: Dict[str, Any] = Field(..., description="WhatsApp message payload")
+
+
+class SlotSelectionResponse(BaseModel):
+    """Response for slot selection"""
+    action: Literal[ActionType.SLOT_SELECTED]
+    slot: TimeSlot
+    message: str = Field(..., description="Confirmation message")
+
+
+class DisabledActionResponse(BaseModel):
+    """Response for disabled actions"""
+    action: Literal[ActionType.DISABLED]
+    message: str
+
+
+class UnknownActionResponse(BaseModel):
+    """Response for unknown actions"""
+    action: Literal[ActionType.UNKNOWN]
+    message: str
+
+
+# Union type for all possible responses
+ListResponse = NavigationResponse | SlotSelectionResponse | DisabledActionResponse | UnknownActionResponse
 
 
 def handle_list_response(
     user_selection: str, 
-    chunked_availability: dict[str, Any]
+    chunked_availability: ChunkedAvailability
 ) -> ListResponse:
     """
     Handle user's selection from the list message.
@@ -196,8 +216,6 @@ def handle_list_response(
     Returns:
         ListResponse (one of the response types)
     """
-    chunked_availability = ChunkedAvailability.model_validate(chunked_availability)
-
     # Navigation handling - Go Back
     if user_selection.startswith("nav_back_"):
         if user_selection == "nav_back_disabled":
@@ -268,6 +286,35 @@ def handle_list_response(
     )
 
 
+# Usage example with type safety
+def process_user_selection(user_selection: str, chunked_availability: ChunkedAvailability):
+    """Example of how to use the response handler with type checking"""
+    response = handle_list_response(user_selection, chunked_availability)
+    
+    # Type-safe handling using match (Python 3.10+)
+    match response.action:
+        case ActionType.NAVIGATE:
+            # TypeScript-style narrowing - response is now NavigationResponse
+            print(f"Navigating {response.direction} to chunk {response.chunk_index}")
+            return response.message
+        
+        case ActionType.SLOT_SELECTED:
+            # response is now SlotSelectionResponse
+            print(f"Slot selected: {response.slot.date} at {response.slot.start_time}")
+            # Process booking with response.slot
+            return response.message
+        
+        case ActionType.DISABLED:
+            # response is now DisabledActionResponse
+            print(f"Disabled action: {response.message}")
+            return None
+        
+        case ActionType.UNKNOWN:
+            # response is now UnknownActionResponse
+            print(f"Unknown action: {response.message}")
+            return None
+
+
 def handle_whatsapp_webhook(
     webhook_data: dict, 
     chunked_availability: ChunkedAvailability, 
@@ -335,22 +382,6 @@ def handle_whatsapp_webhook(
         print(f"Error handling webhook: {e}")
     
     return None
-
-
-def jsonify(x: Any) -> Any:
-    if x is None or isinstance(x, (str, int, float, bool)):
-        return x
-    if isinstance(x, (datetime, date)):
-        return x.isoformat()
-    if isinstance(x, UUID):
-        return str(x)
-    if isinstance(x, Enum):
-        return x.value
-    if isinstance(x, Mapping):
-        return {str(k): jsonify(v) for k, v in x.items()}
-    if isinstance(x, (list, tuple, set)):
-        return [jsonify(v) for v in x]
-    return str(x)
 
 
 # Usage example:

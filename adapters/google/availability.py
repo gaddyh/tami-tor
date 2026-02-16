@@ -4,13 +4,24 @@ import pytz
 from collections import defaultdict
 from adapters.google.tokens import get_valid_credentials
 from typing import List
-
+from handlers.helper import create_whatsapp_list_message
 from models.availability import TimeSlot, SlotChunk, ChunkedAvailability
 from runtime.events import now_israel
+
 def init_google_calendar(user_id: str):
     creds = get_valid_credentials(user_id)
-    service = build('calendar', 'v3', credentials=creds)
-    return service
+    if creds is None:
+        raise RuntimeError(
+            f"No OAuth credentials found for user_id={user_id}. "
+            "This must be stored/refreshable; do not fall back to ADC."
+        )
+    if not getattr(creds, "valid", False) and not getattr(creds, "refresh_token", None):
+        raise RuntimeError(
+            f"Credentials not valid and no refresh_token for user_id={user_id}."
+        )
+
+    return build("calendar", "v3", credentials=creds)
+
 
 def find_free_slots(busy_periods, start_dt, end_dt, timezone):
     """
@@ -332,7 +343,7 @@ def divide_chunked_into_slots(availability_data, chunk_size=8) -> ChunkedAvailab
 
 
 if __name__ == "__main__":
-    availability_data = get_available_slots("972546610655", "Asia/Jerusalem", "2026-01-15", "2026-01-20")
+    availability_data = get_available_slots("972546610653", "Asia/Jerusalem", "2026-01-15", "2026-01-20")
     chunks = divide_chunked_into_slots(availability_data, chunk_size=8)
-    payload = create_whatsapp_list_message(chunks, "972546610655", 0)
+    payload = create_whatsapp_list_message(chunks, "972546610653", 0)
     print("Sending slots payload:", payload, flush=True)

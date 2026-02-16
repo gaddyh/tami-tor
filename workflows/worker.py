@@ -1,8 +1,8 @@
 import asyncio
 import signal
 
-from temporalio.client import Client
 from temporalio.worker import Worker
+from adapters.temporal.client_cloud import temporal_client_from_env
 
 from workflows.client_session.workflow import ClientSessionWorkflow
 from workflows.activities import (
@@ -21,7 +21,8 @@ from agents.intent.step_delta import llm_step_extract
 from workflows.main import TASK_QUEUE
 
 async def main():
-    client = await Client.connect("localhost:7233")
+    client = await temporal_client_from_env()
+
 
     worker = Worker(
         client,

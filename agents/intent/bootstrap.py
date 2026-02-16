@@ -103,7 +103,7 @@ def _to_services(services_dicts: list[dict]) -> List[Service]:
                 Service(
                     id=str(d.get("id") or ""),
                     name=str(d.get("name") or ""),
-                    duration_min=int(d["duration_min"]) if d.get("duration_min") is not None else None,
+                    duration_min=d.get("duration_min") or d.get("duration"),
                     price=d.get("price"),
                     is_active=bool(d.get("is_active", True)),
                 )

@@ -13,6 +13,7 @@ from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLRes
 from fastapi.templating import Jinja2Templates
 
 from temporalio.client import Client
+from adapters.temporal.client_cloud import temporal_client_from_env
 
 from apps.webhook_ingest import persist_inbound
 from runtime.events import emit_event
@@ -23,7 +24,6 @@ from db.session_async import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from adapters.cloud_api import CloudAPIAdapter
 
-from apps.config import get_temporal_client
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -36,9 +36,7 @@ templates = Jinja2Templates(directory="apps/templates")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize Temporal client
-    app.state.temporal_client = await Client.connect(
-        os.getenv("TEMPORAL_ADDRESS", "localhost:7233")
-    )
+    app.state.temporal_client = await temporal_client_from_env()
 
     # Initialize adapter (singleton per process)
     app.state.adapter = CloudAPIAdapter(WHATSAPP_PHONE_NUMBER_ID)
@@ -127,7 +125,6 @@ from fastapi import Depends
 async def webhook(
     request: Request,
     x_hub_signature_256: str = Header(default=None),
-    temporal_client: Client = Depends(get_temporal_client),
 ):
     body_bytes = await request.body()
 

@@ -27,7 +27,7 @@ async def get_business_provider_id(
 
     business_provider: BusinessProvider | None = result.scalar_one_or_none()
     
-    return business_provider.id
+    return business_provider.user_id
 
 
 
