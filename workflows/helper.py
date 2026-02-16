@@ -428,7 +428,7 @@ _HE_DAY_MAP = {
     "Saturday": "שבת",
 }
 
-def build_hebrew_slot_confirmation(slot) -> str:
+def build_hebrew_slot_confirmation(slot, service_name:str) -> str:
     """
     Build a Hebrew confirmation message for a chosen appointment slot.
 
@@ -466,6 +466,6 @@ def build_hebrew_slot_confirmation(slot) -> str:
 
     return (
         "רק לוודא 🙂\n"
-        f"לקבוע תור ל-{day_part}{date_str}\n"
+        f"לקבוע תור ל-{service_name} ב-{day_part}{date_str}\n"
         f"בין {slot.start_time} ל-{slot.end_time}{dur_part}?\n\n"
     )
