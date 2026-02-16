@@ -17,6 +17,7 @@ from models.availability import ChunkedAvailability
 from models.availability import TimeSlot
 from handlers.helper import build_hebrew_slot_confirmation, create_whatsapp_list_message
 from db.models.business import Business
+from handlers.helper import create_whatsapp_list_message
 
 @dataclass
 class Slot:
@@ -125,6 +126,7 @@ async def send_services_list(payload: Dict[str, Any]) -> None:
 
 @activity.defn
 async def send_slots_list(payload: Dict[str, Any]) -> None:
+    create_whatsapp_list_message(payload["slots"], payload["client_id"], 0)
     activity.logger.info("SEND_SLOTS_LIST -> %s", payload)
 
 

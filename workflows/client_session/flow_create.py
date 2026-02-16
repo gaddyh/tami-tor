@@ -54,12 +54,21 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
     )
 
     wf.state.step = wf.SessionStep.SLOTS_PICK
-    duration = next((s["duration_min"] for s in services if s["id"] == wf.state.data.service_id), None)
+    service_id = wf.state.data.service_id
+
+    if service_id.startswith("svc:"):
+        service_id = service_id.removeprefix("svc:")
+
+    duration = next(
+        (s["duration_min"] for s in services if s["id"] == service_id),
+        None,
+    )
+
     slots = await workflow.execute_activity(
         "compute_slots",
         {
             "business_id": wf.business_id,
-            "service_id": wf.state.data.service_id,
+            "service_id": service_id,
             "start_date": getattr(wf.state.data, "start_date", None),
             "end_date": getattr(wf.state.data, "end_date", None),
             "start_time": getattr(wf.state.data, "start_time", None),
@@ -92,7 +101,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
     #wf.state.data.confirmed = None
     await workflow.execute_activity(
         "send_confirm_buttons",
-        {"client_id": wf.client_id, "service_id": wf.state.data.service_id, "slot_id": wf.state.data.chosen_slot_id},
+        {"client_id": wf.client_id, "service_id": service_id, "slot_id": wf.state.data.chosen_slot_id},
         start_to_close_timeout=timedelta(seconds=10),
         retry_policy=DEFAULT_RETRY,
     )
@@ -112,7 +121,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         {
             "business_id": wf.business_id,
             "client_id": wf.client_id,
-            "service_id": wf.state.data.service_id,
+            "service_id": service_id,
             "slot_id": wf.state.data.chosen_slot_id,
         },
         start_to_close_timeout=timedelta(seconds=30),
