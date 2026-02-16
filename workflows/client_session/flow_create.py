@@ -54,6 +54,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
     )
 
     wf.state.step = wf.SessionStep.SLOTS_PICK
+    duration = next((s["duration_min"] for s in services if s["id"] == wf.state.data.service_id), None)
     slots = await workflow.execute_activity(
         "compute_slots",
         {
@@ -63,7 +64,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
             "end_date": getattr(wf.state.data, "end_date", None),
             "start_time": getattr(wf.state.data, "start_time", None),
             "end_time": getattr(wf.state.data, "end_time", None),
-            "duration": getattr(wf.state.data, "duration", None),
+            "duration": duration,
             "client_id": wf.client_id,
         },
         start_to_close_timeout=timedelta(seconds=30),
