@@ -440,6 +440,7 @@ def build_hebrew_slot_confirmation(slot, service_name:str) -> str:
       - duration_hours: float
     """
     # Date formatting: 2026-01-15 -> 15/01/2026
+    slot = TimeSlot.model_validate(slot)
     date_str = slot.date
     try:
         dt = datetime.strptime(slot.date, "%Y-%m-%d")
