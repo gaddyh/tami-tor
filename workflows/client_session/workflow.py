@@ -66,7 +66,7 @@ class ClientSessionWorkflow:
         if ev.list_id:
             if ev.list_id.startswith("svc:"):
                 self.state.data.service_id = ev.list_id.replace("svc:", "", 1)
-            elif ev.list_id.startswith("slot:"):
+            elif ev.list_id.startswith("slot:") or ev.list_id.startswith("nav"):
                 id = ev.list_id.replace("slot:", "", 1)
                 response: ListResponse = handle_list_response(id, self.state.data.chunked)
                 if response.action == ActionType.SLOT_SELECTED:
