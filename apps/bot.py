@@ -147,8 +147,6 @@ async def webhook(
     new_signals = 0
     duplicates = 0
 
-    assert temporal_client is not None, "Temporal client not initialized"
-
     try:
         for entry in (raw_data.get("entry") or []):
             for change in (entry.get("changes") or []):
@@ -203,14 +201,14 @@ async def webhook(
                             business_id=route_result.business_id,
                             client_id=client_id,
                             ev=ev,
-                            temporal_client=temporal_client,
+                            temporal_client=app.state.temporal_client,
                         )
                     else:
                         await update_client_workflow_with_start(
                             business_id=route_result.business_id,
                             client_id=client_id,
                             ev=ev,
-                            temporal_client=temporal_client,
+                            temporal_client=app.state.temporal_client,
                         )
 
                     new_signals += 1
