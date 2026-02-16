@@ -64,7 +64,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         None,
     )
 
-    slots = await workflow.execute_activity(
+    chunked = await workflow.execute_activity(
         "compute_slots",
         {
             "business_id": wf.business_id,
@@ -80,9 +80,11 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         retry_policy=DEFAULT_RETRY,
     )
 
+    wf.state.data.chunked = chunked
+
     await workflow.execute_activity(
         "send_slots_list",
-        {"client_id": wf.client_id, "slots": slots},
+        {"client_id": wf.client_id, "chunked": chunked, "index": 0},
         start_to_close_timeout=timedelta(seconds=10),
         retry_policy=DEFAULT_RETRY,
     )
@@ -91,7 +93,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         intent="CREATE",
         step="SLOTS_PICK",
         predicate=lambda: wf.state.cancelled or wf.state.data.chosen_slot_id is not None,
-        context={"slots": slots},
+        context={"slots": chunked},
         apply_delta=lambda d: _apply_common_confirm(wf, d),
     )
     if wf.state.cancelled:

@@ -90,12 +90,8 @@ async def compute_slots(payload: Dict[str, Any]) -> List[Slot]:
 
     chunked: ChunkedAvailability = divide_chunked_into_slots(items, chunk_size=5)
 
-    payload = create_whatsapp_list_message(chunked, client_id, 0)
-    res = await adapter.send_dynamic_list_message(
-        to_phone=client_id,
-        interactive_payload=payload,
-    )
-    return chunked.chunks
+   
+    return chunked
 
 
 @activity.defn
@@ -127,8 +123,15 @@ async def send_services_list(payload: Dict[str, Any]) -> None:
 
 @activity.defn
 async def send_slots_list(payload: Dict[str, Any]) -> None:
-    create_whatsapp_list_message(payload["slots"], payload["client_id"], 0)
-    activity.logger.info("SEND_SLOTS_LIST -> %s", payload)
+    adapter: CloudAPIAdapter = get_adapter_global()
+    chunked = payload["chunked"]
+    client_id = payload["client_id"]
+    index = payload["index"]
+    payload = create_whatsapp_list_message(chunked, client_id, index)
+    res = await adapter.send_dynamic_list_message(
+        to_phone=client_id,
+        interactive_payload=payload,
+    )
 
 
 @activity.defn
