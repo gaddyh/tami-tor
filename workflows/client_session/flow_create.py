@@ -40,7 +40,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
             intent="CREATE",
             step="SERVICE_PICK",
             predicate=lambda: wf.state.cancelled or wf.state.data.service_id is not None,
-            context={"services": [s.model_dump() for s in services]},
+            context={"services": services},
             apply_delta=lambda d: _apply_create_delta(wf, services, d),
         )
         if wf.state.cancelled:

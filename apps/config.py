@@ -1,5 +1,8 @@
 import os
 from dotenv import load_dotenv
+from fastapi import Request, Depends
+from temporalio.client import Client
+from adapters.cloud_api import CloudAPIAdapter
 
 load_dotenv(".venv/.env")
 
@@ -36,3 +39,19 @@ def _assert_no_stream_key_used_for_queue(var_name: str, value: str) -> None:
 
 # Guardrails to prevent the exact WRONGTYPE bug from ever happening again
 _assert_no_stream_key_used_for_queue("WORK_QUEUE_NAME", WORK_QUEUE_NAME)
+
+
+def get_temporal_client(request: Request) -> Client:
+    return request.app.state.temporal_client
+
+
+def get_adapter(request: Request) -> CloudAPIAdapter:
+    return request.app.state.adapter
+
+tami_wa_id = "723503380842690"
+tami_tor_wa_id = "816205444920021"
+tami_tor_alin_wa_id = "982974261547358"
+
+def get_adapter_global() -> CloudAPIAdapter:
+    adapter = CloudAPIAdapter(phone_number_id=tami_tor_wa_id)
+    return adapter

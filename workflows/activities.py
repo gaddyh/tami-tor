@@ -7,7 +7,9 @@ from temporalio import activity
 from models.service import Service
 from db.ops.business import get_services_by_business_id
 from db.session_async import get_async_db
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.config import get_adapter_global
+from adapters.cloud_api import CloudAPIAdapter
 
 @dataclass
 class Slot:
@@ -15,6 +17,12 @@ class Slot:
     start_iso: str
     end_iso: str
 
+def services_list_payload(rows) -> Dict[str, Any]:
+    return {
+        "type": "list",
+        "body": {"text": "באיזה שירות תרצי לבחור?"},
+        "action": {"button": "בחירה", "sections": [{"title": "שירותים זמינים", "rows": rows}]},
+    }
 
 @activity.defn
 async def load_services(dict: Dict[str, Any]) -> List[Service]:
@@ -41,7 +49,16 @@ async def send_text(payload: Dict[str, Any]) -> None:
 
 @activity.defn
 async def send_services_list(payload: Dict[str, Any]) -> None:
-    activity.logger.info("SEND_SERVICES_LIST -> %s", payload)
+    services = payload["services"]
+    client_id = payload["client_id"]
+    rows = [{"id": s["id"], "title": s["name"]} for s in services]
+    adapter: CloudAPIAdapter = get_adapter_global()
+    res = await adapter.send_dynamic_list_message(
+        to_phone=client_id,
+        interactive_payload=services_list_payload(rows),
+    )
+    print("SEND_SERVICES_LIST response:", res)
+    activity.logger.info("SEND_SERVICES_LIST -> %s", res)
 
 
 @activity.defn

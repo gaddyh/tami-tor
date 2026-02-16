@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from time import sleep
 from temporalio.client import Client
 
 from workflows.main import update_client_workflow_with_start
@@ -18,6 +19,7 @@ async def _run_create(temporal: Client, business_id: str, client_id: str) -> Non
         client_id=client_id,
         ev=InboundEvent(event_id="c1", client_id=client_id, kind="text", text="hi"),
     )
+    sleep(3)
     await update_client_workflow_with_start(
         temporal_client=temporal,
         business_id=business_id,
@@ -124,14 +126,18 @@ async def _run_update(temporal: Client, business_id: str, client_id: str) -> Non
     result = await handle.result()
     print("UPDATE ✓", result)
 
+import asyncio
+from apps.bot import app
 
 async def main_async(mode: str) -> None:
-    temporal = await Client.connect("localhost:7233")
+    async with app.router.lifespan_context(app):
+        temporal = app.state.temporal_client
+        adapter = app.state.adapter
 
     business_id = "demo-salon"
     # Use a different client_id per mode to avoid collisions during dev
     client_id = {
-        "create": "demo-client11-create7",
+        "create": "972546610653",
         "read": "demo-client-read6",
         "delete": "demo-client-delete6",
         "update": "demo-client-update6",

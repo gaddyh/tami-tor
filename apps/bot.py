@@ -21,22 +21,28 @@ from models.input import InboundEvent
 from workflows.main import update_provider_workflow_with_start, update_client_workflow_with_start, TASK_QUEUE, resolve_user_route_async
 from db.session_async import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
+from adapters.cloud_api import CloudAPIAdapter
+
+from apps.config import get_temporal_client
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "...")
 APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
-
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 templates = Jinja2Templates(directory="apps/templates")
-
-temporal_client: Client | None = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global temporal_client
-    temporal_client = await Client.connect(os.getenv("TEMPORAL_ADDRESS", "localhost:7233"))
+    # Initialize Temporal client
+    app.state.temporal_client = await Client.connect(
+        os.getenv("TEMPORAL_ADDRESS", "localhost:7233")
+    )
+
+    # Initialize adapter (singleton per process)
+    app.state.adapter = CloudAPIAdapter(WHATSAPP_PHONE_NUMBER_ID)
+
     yield
 
 
@@ -103,15 +109,6 @@ def _to_inbound_event(mid: str, client_id: str, m: dict) -> InboundEvent:
     return InboundEvent(event_id=mid, client_id=client_id, kind="unknown")
 
 
-def _demo_services() -> List[Service]:
-    # For now, keep your demo list here.
-    # Later: move to a workflow activity load_services(business_id).
-    return [
-        Service(id="haircut", name="Haircut", duration_min=30),
-        Service(id="beard", name="Beard", duration_min=15),
-    ]
-
-
 @app.get("/webhook", response_class=PlainTextResponse)
 async def verify_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
@@ -124,11 +121,13 @@ async def verify_webhook(
     logger.warning("Webhook verification failed.")
     raise HTTPException(status_code=403, detail="Verification failed")
 
+from fastapi import Depends
 
 @app.post("/webhook")
 async def webhook(
     request: Request,
     x_hub_signature_256: str = Header(default=None),
+    temporal_client: Client = Depends(get_temporal_client),
 ):
     body_bytes = await request.body()
 
