@@ -51,7 +51,7 @@ class ClientSessionWorkflow:
         self.state.data.update(delta)
 
     @workflow.update
-    def ingest(self, ev: InboundEvent) -> Dict[str, Any]:
+    async def ingest(self, ev: InboundEvent) -> Dict[str, Any]:
         if not ev.event_id:
             raise ValueError("event_id required")
 
@@ -72,6 +72,14 @@ class ClientSessionWorkflow:
                 if response.action == ActionType.SLOT_SELECTED:
                     self.state.data.chosen_slot_id = id
                     self.state.data.chosen_slot = response.slot
+                if response.action == ActionType.NAVIGATE:
+                    self.state.data.chunked_index = response.chunk_index
+                    await workflow.execute_activity(
+                        "send_slots_list",
+                        {"client_id": self.client_id, "chunked": self.state.data.chunked, "index": self.state.data.chunked_index},
+                        start_to_close_timeout=timedelta(seconds=10),
+                        retry_policy=DEFAULT_RETRY,
+                    )
             elif ev.list_id.startswith("booking:"):
                 self.state.data.booking_id = ev.list_id.replace("booking:", "", 1)
 
