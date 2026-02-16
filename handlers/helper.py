@@ -95,7 +95,7 @@ def create_whatsapp_list_message(chunked_availability: ChunkedAvailability, to_p
             slot_id = f"slot_{chunk_index}_{date}_{i}"
             slot:TimeSlot = slot
             rows.append({
-                "id": slot_id,
+                "id": f"slot:{slot_id}",
                 "title": f"{slot.start_time} - {slot.end_time}"
             })
         

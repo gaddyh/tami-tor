@@ -136,7 +136,7 @@ async def main_async(mode: str) -> None:
     business_id = "demo-salon"
     # Use a different client_id per mode to avoid collisions during dev
     client_id = {
-        "create": "972546610655",
+        "create": "972546610653",
         "read": "demo-client-read6",
         "delete": "demo-client-delete6",
         "update": "demo-client-update6",
