@@ -17,7 +17,7 @@ DEFAULT_RETRY = RetryPolicy(
 
 async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str, Any]:
     wf.state.step = wf.SessionStep.SERVICE_PICK
-    print("seed: " + seed)
+    print("seed: " + str(seed))
 
     # seed service
     if seed.get("service_name"):
