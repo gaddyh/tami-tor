@@ -61,7 +61,7 @@ class SessionData(BaseModel):
     chosen_slot:Optional[TimeSlot] = None
     chosen_slot_id: Optional[str] = None
 
-    confirmed: Optional[bool] = None
+    confirmed: bool = False
     booking_id: Optional[str] = None
    
 

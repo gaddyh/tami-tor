@@ -83,8 +83,8 @@ class ClientSessionWorkflow:
             elif ev.list_id.startswith("booking:"):
                 self.state.data.booking_id = ev.list_id.replace("booking:", "", 1)
 
-        if ev.kind == "button" and ev.button_id in ("confirm", "cancel"):
-            self.state.data.confirmed = (ev.button_id == "confirm")
+        if ev.kind == "button" and "_confirm" in ev.button_id:
+            self.state.data.confirmed = True
 
         return {"accepted": True}
 
