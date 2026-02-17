@@ -113,11 +113,11 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
     await wf.wait_with_fallback(
         intent="CREATE",
         step="CONFIRM",
-        predicate=lambda: wf.state.cancelled or wf.state.data.confirmed is not None,
+        predicate=lambda: wf.state.cancelled or wf.state.data.confirmed,
         context={},
         apply_delta=lambda d: _apply_common_confirm(wf, d),
     )
-    if wf.state.cancelled or wf.state.data.confirmed is False:
+    if wf.state.cancelled or not wf.state.data.confirmed:
         return await wf.finish_cancel("confirm")
 
     booking_id = await workflow.execute_activity(
@@ -154,5 +154,5 @@ def _apply_create_delta(wf, services: list[Any], d: Dict[str, Any]) -> None:
 def _apply_common_confirm(wf, d: Dict[str, Any]) -> None:
     if not d:
         return
-    if "confirmed" in d and wf.state.data.confirmed is None:
+    if "confirmed" in d and not wf.state.data.confirmed:
         wf.state.data.confirmed = bool(d["confirmed"])
