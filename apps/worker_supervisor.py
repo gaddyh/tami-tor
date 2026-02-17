@@ -3,7 +3,7 @@ import subprocess
 import sys
 import signal
 
-N_WORKERS = 1
+N_WORKERS = 4
 processes = []
 
 
