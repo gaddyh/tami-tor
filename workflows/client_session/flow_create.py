@@ -20,7 +20,7 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
     print("seed: " + seed)
 
     # seed service
-    if seed.get("service_name") and not wf.state.data.service_id:
+    if seed.get("service_name"):
         sid = find_service_id_by_name(services, seed["service_name"])
         if sid:
             wf.state.data.service_id = sid
