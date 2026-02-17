@@ -10,7 +10,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 
 from db.session import SessionLocal
-from models.calendar_event import EventRow  # ORM row (DB model)
+from db.models.calendar_event import EventRow  # ORM row (DB model)
 
 
 def jsonify(x: Any) -> Any:

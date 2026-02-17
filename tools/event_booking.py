@@ -1,10 +1,11 @@
 from __future__ import annotations
 from typing import Any, Optional, Literal, List, Dict
-from adapters.google.fetch_events import VerifiedEvent, EventRow
+from adapters.google.fetch_events import VerifiedEvent
 from observability.obs import span_attrs, mark_error, instrument_io
 from models.event_item import EventItem
 from adapters.google.process_event import _process_event
 from observability.langfuse_client import langfuse
+from db.models.calendar_event import EventRow  # your SQLAlchemy EventItem model
 
 def summarize(result: dict):
     return result

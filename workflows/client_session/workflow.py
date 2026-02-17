@@ -130,12 +130,17 @@ class ClientSessionWorkflow:
 
         # dispatch with typed payload (each flow can accept BaseModel or dict; pick one)
         if self.bootstrap.intent == "CREATE":
-            return await run_create(self, services, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
+            res = await run_create(self, services, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
+            if res["ok"]:
+                #reminders
+                f=5
         if self.bootstrap.intent == "READ":
-            return await run_read(self, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
+            res = await run_read(self, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
         if self.bootstrap.intent == "DELETE":
-            return await run_delete(self, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
-        return await run_update(self, services, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
+            res = await run_delete(self, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
+        if self.bootstrap.intent == "UPDATE":
+            res = await run_update(self, services, self.bootstrap.payload.model_dump() if self.bootstrap.payload else {})
+        return res
 
     async def wait_with_fallback(self, *, intent: str, step: str, predicate, context: dict, apply_delta) -> None:
         while True:
