@@ -17,6 +17,12 @@ from models.availability import ChunkedAvailability
 from models.availability import TimeSlot
 from workflows.helper import build_hebrew_slot_confirmation, create_whatsapp_list_message
 from db.models.business import Business
+from db.models.business import Business
+from models.work_item import WorkItem
+from models.event_item import EventItem
+from tools.event_booking import create_event
+from db.persist_event import persist_event_item, update_event_gcal
+from datetime import datetime
 
 @dataclass
 class Slot:
@@ -149,8 +155,43 @@ async def send_confirm_buttons(payload: Dict[str, Any]) -> None:
 
 @activity.defn
 async def create_booking(payload: Dict[str, Any]) -> str:
-    # stub: replace with DB + GCal create; return booking_id
-    return "bk_12345"
+    business_id = payload["business_id"]
+    client_id = payload["client_id"]
+    service_id = payload["service_id"]
+    service_name = payload["service_name"]
+    slot = payload["slot"]
+    slot = TimeSlot.model_validate(slot)
+    client_name = payload.get("client_name", "")
+    async with get_async_db() as db:
+        provider_id = await get_business_provider_id(db, business_id=business_id)
+
+    event = EventItem(
+        item_id=None,
+        command="create",
+        service_id=service_id,
+        title=service_name + " - " + (client_name or "") + " - " + (client_id or ""),
+        description=None,
+        start_at=slot.start,
+        date=None,
+        end_at=slot.end,
+        location="",
+        participants=[],
+        recurrence=None,
+        reminders=[],
+        allow_conflicts=False,
+        notify=False,
+        timezone="Asia/Jerusalem",
+    )
+
+    event_id = persist_event_item(provider_id=provider_id, client_id=client_id, event=event)
+
+    res = create_event(user_id=provider_id, event=event)
+    if res.get("ok"):
+        gcal_event_id = res.get("item_id")
+        update_event_gcal(user_id=client_id, event_id=event_id, gcal_event_id=gcal_event_id)
+    elif res.get("conflicts"):
+        conflicts = res.get("conflicts")  # TODO
+    return event_id
 
 @activity.defn
 async def transcribe_audio(payload: Dict[str, Any]) -> str:
