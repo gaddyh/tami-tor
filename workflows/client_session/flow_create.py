@@ -23,6 +23,10 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         sid = find_service_id_by_name(services, seed["service_name"])
         if sid:
             wf.state.data.service_id = sid
+            service_name = seed["service_name"]
+        else:
+            service_name = None
+            print(f"Service '{seed['service_name']}' not found in services list")
 
     # optional constraints
     for k in ("start_date", "end_date", "start_time", "end_time"):
@@ -45,8 +49,9 @@ async def run_create(wf, services: list[Any], seed: Dict[str, Any]) -> Dict[str,
         )
         if wf.state.cancelled:
             return await wf.finish_cancel("service_pick")
-    
-    service_name = next((s["name"] for s in services if s["id"] == wf.state.data.service_id), None)
+
+    if not service_name:
+        service_name = next((s["name"] for s in services if s["id"] == wf.state.data.service_id), None)
     
     await workflow.execute_activity(
         "send_text",
